@@ -11,7 +11,6 @@ import {
 } from "../../../shared/lib/auth";
 import { getCurrentPlan, setCurrentPlan as savePlan, PLANS, formatPrice, type PlanType } from "../../../shared/lib/subscription";
 import { PlanModal } from "./PlanModal";
-import { useState, useEffect } from "react";
 
 export function Header() {
   const [user, setUser] = useState<User | null>(getCurrentUser());
