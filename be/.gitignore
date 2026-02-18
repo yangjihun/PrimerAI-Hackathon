@@ -22,3 +22,6 @@ htmlcov/
 
 # Logs
 *.log
+
+# Local databases
+*.db

@@ -1,0 +1,526 @@
+﻿openapi: 3.0.3
+info:
+  title: NetPlus MVP API
+  version: 0.1.0
+  description: |
+    NetPlus Time-based RAG + Evidence backend API.
+    Policies:
+    - Spoiler Guard: never use content after current_time_ms.
+    - Evidence Required: responses include evidence lines when available.
+    - Safe Degrade: insufficient evidence returns warnings and low confidence.
+servers:
+  - url: http://localhost:8000
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      operationId: healthCheck
+      responses:
+        '200':
+          description: OK
+  /api/auth/signup:
+    post:
+      tags: [Auth]
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      operationId: getMe
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUser'
+  /api/titles:
+    get:
+      tags: [Catalog]
+      operationId: listTitles
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: cursor
+          schema: { type: string, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTitles'
+  /api/titles/{titleId}:
+    get:
+      tags: [Catalog]
+      operationId: getTitle
+      parameters:
+        - $ref: '#/components/parameters/TitleId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Title'
+  /api/titles/{titleId}/episodes:
+    get:
+      tags: [Catalog]
+      operationId: listEpisodes
+      parameters:
+        - $ref: '#/components/parameters/TitleId'
+        - in: query
+          name: season
+          schema: { type: integer, nullable: true }
+      responses:
+        '200':
+          description: OK
+  /api/recap:
+    post:
+      tags: [Companion]
+      operationId: createRecap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecapRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecapResponse'
+  /api/qa:
+    post:
+      tags: [Companion]
+      operationId: askQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QARequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QAResponse'
+  /api/graph:
+    get:
+      tags: [Graph]
+      operationId: getGraph
+      parameters:
+        - in: query
+          name: title_id
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+        - in: query
+          name: episode_id
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+        - in: query
+          name: current_time_ms
+          required: true
+          schema: { $ref: '#/components/schemas/TimestampMs' }
+        - in: query
+          name: focus_character_id
+          schema: { $ref: '#/components/schemas/UUID', nullable: true }
+        - in: query
+          name: relation_types
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/RelationType' }
+          style: form
+          explode: true
+        - in: query
+          name: include_hypothesis
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphResponse'
+  /api/relations/{relationId}:
+    get:
+      tags: [Graph]
+      operationId: getRelation
+      parameters:
+        - in: path
+          name: relationId
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+        - in: query
+          name: current_time_ms
+          required: true
+          schema: { $ref: '#/components/schemas/TimestampMs' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelationDetailResponse'
+  /api/characters/{characterId}:
+    get:
+      tags: [Characters]
+      operationId: getCharacter
+      parameters:
+        - in: path
+          name: characterId
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+        - in: query
+          name: episode_id
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+        - in: query
+          name: current_time_ms
+          required: true
+          schema: { $ref: '#/components/schemas/TimestampMs' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterCardResponse'
+  /api/resolve-entity:
+    post:
+      tags: [Characters]
+      operationId: resolveEntity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveEntityRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveEntityResponse'
+components:
+  parameters:
+    TitleId:
+      in: path
+      name: titleId
+      required: true
+      schema: { $ref: '#/components/schemas/UUID' }
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    TimestampMs:
+      type: integer
+      minimum: 0
+    AuthUser:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        email: { type: string }
+        created_at: { type: string, nullable: true }
+      required: [id, name, email]
+    SignupRequest:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string }
+        password: { type: string }
+      required: [name, email, password]
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string }
+        password: { type: string }
+      required: [email, password]
+    AuthResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, example: bearer }
+        user: { $ref: '#/components/schemas/AuthUser' }
+      required: [access_token, token_type, user]
+    Warning:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+      required: [code, message]
+    Title:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        created_at: { type: string, nullable: true }
+      required: [id, name]
+    Episode:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        title_id: { $ref: '#/components/schemas/UUID' }
+        season: { type: integer }
+        episode_number: { type: integer }
+        name: { type: string, nullable: true }
+        duration_ms: { type: integer, nullable: true }
+      required: [id, title_id, season, episode_number]
+    PaginatedTitles:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Title' }
+        next_cursor: { type: string, nullable: true }
+      required: [items, next_cursor]
+    RelationType:
+      type: string
+      enum: [FAMILY, ROMANCE, ALLY, MISTRUST, BOSS_SUBORDINATE, FRIEND, RIVAL, UNKNOWN]
+    EvidenceLine:
+      type: object
+      properties:
+        subtitle_line_id: { $ref: '#/components/schemas/UUID' }
+        start_ms: { $ref: '#/components/schemas/TimestampMs' }
+        end_ms: { $ref: '#/components/schemas/TimestampMs' }
+        speaker_text: { type: string, nullable: true }
+        text: { type: string }
+      required: [subtitle_line_id, start_ms, end_ms, text]
+    Evidence:
+      type: object
+      properties:
+        evidence_id: { $ref: '#/components/schemas/UUID' }
+        representative_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+        summary: { type: string, nullable: true }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/EvidenceLine' }
+      required: [evidence_id, representative_time_ms, lines]
+    MetaEnvelope:
+      type: object
+      properties:
+        title_id: { $ref: '#/components/schemas/UUID' }
+        episode_id: { $ref: '#/components/schemas/UUID' }
+        current_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+        spoiler_guard_applied: { type: boolean }
+        model: { type: string, nullable: true }
+      required: [title_id, episode_id, current_time_ms, spoiler_guard_applied]
+    RecapPreset:
+      type: string
+      enum: [TWENTY_SEC, ONE_MIN, THREE_MIN]
+    RecapMode:
+      type: string
+      enum: [GENERAL, CHARACTER_FOCUSED, CONFLICT_FOCUSED]
+    RecapRequest:
+      type: object
+      properties:
+        title_id: { $ref: '#/components/schemas/UUID' }
+        episode_id: { $ref: '#/components/schemas/UUID' }
+        current_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+        preset: { $ref: '#/components/schemas/RecapPreset' }
+        mode: { $ref: '#/components/schemas/RecapMode', nullable: true }
+        language: { type: string, nullable: true }
+      required: [title_id, episode_id, current_time_ms, preset]
+    RecapPayload:
+      type: object
+      properties:
+        text: { type: string }
+        bullets:
+          type: array
+          items: { type: string }
+      required: [text, bullets]
+    RecapResponse:
+      type: object
+      properties:
+        meta: { $ref: '#/components/schemas/MetaEnvelope' }
+        recap: { $ref: '#/components/schemas/RecapPayload' }
+        watch_points:
+          type: array
+          items: { type: string }
+        evidences:
+          type: array
+          items: { $ref: '#/components/schemas/Evidence' }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/Warning' }
+      required: [meta, recap, watch_points, evidences, warnings]
+    QARequest:
+      type: object
+      properties:
+        title_id: { $ref: '#/components/schemas/UUID' }
+        episode_id: { $ref: '#/components/schemas/UUID' }
+        current_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+        question: { type: string }
+      required: [title_id, episode_id, current_time_ms, question]
+    Interpretation:
+      type: object
+      properties:
+        label: { type: string }
+        text: { type: string }
+        confidence: { type: number }
+      required: [label, text, confidence]
+    AnswerPayload:
+      type: object
+      properties:
+        conclusion: { type: string }
+        context:
+          type: array
+          items: { type: string }
+        interpretations:
+          type: array
+          items: { $ref: '#/components/schemas/Interpretation' }
+        overall_confidence: { type: number }
+      required: [conclusion, context, interpretations, overall_confidence]
+    QAResponse:
+      type: object
+      properties:
+        meta: { $ref: '#/components/schemas/MetaEnvelope' }
+        answer: { $ref: '#/components/schemas/AnswerPayload' }
+        evidences:
+          type: array
+          items: { $ref: '#/components/schemas/Evidence' }
+        related_graph_focus: { type: object, nullable: true }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/Warning' }
+      required: [meta, answer, evidences, related_graph_focus, warnings]
+    GraphNode:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        label: { type: string }
+        description: { type: string, nullable: true }
+        aliases:
+          type: array
+          items: { type: string }
+      required: [id, label]
+    GraphEdge:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        from_character_id: { $ref: '#/components/schemas/UUID' }
+        to_character_id: { $ref: '#/components/schemas/UUID' }
+        relation_type: { $ref: '#/components/schemas/RelationType' }
+        is_hypothesis: { type: boolean }
+        confidence: { type: number }
+        valid_from_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+        valid_to_time_ms: { $ref: '#/components/schemas/TimestampMs', nullable: true }
+        evidences:
+          type: array
+          items: { $ref: '#/components/schemas/Evidence' }
+      required: [id, from_character_id, to_character_id, relation_type, is_hypothesis, confidence, valid_from_time_ms, evidences]
+    GraphResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            title_id: { $ref: '#/components/schemas/UUID' }
+            episode_id: { $ref: '#/components/schemas/UUID' }
+            current_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+            spoiler_guard_applied: { type: boolean }
+        nodes:
+          type: array
+          items: { $ref: '#/components/schemas/GraphNode' }
+        edges:
+          type: array
+          items: { $ref: '#/components/schemas/GraphEdge' }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/Warning' }
+      required: [meta, nodes, edges, warnings]
+    RelationDetailResponse:
+      type: object
+      properties:
+        relation: { $ref: '#/components/schemas/GraphEdge' }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/Warning' }
+      required: [relation, warnings]
+    CharacterCardResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            character_id: { $ref: '#/components/schemas/UUID' }
+            episode_id: { $ref: '#/components/schemas/UUID' }
+            current_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+            spoiler_guard_applied: { type: boolean }
+        character:
+          type: object
+        summary:
+          type: object
+        evidences:
+          type: array
+          items: { $ref: '#/components/schemas/Evidence' }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/Warning' }
+      required: [meta, character, summary, evidences, warnings]
+    ResolveEntityRequest:
+      type: object
+      properties:
+        title_id: { $ref: '#/components/schemas/UUID' }
+        episode_id: { $ref: '#/components/schemas/UUID' }
+        current_time_ms: { $ref: '#/components/schemas/TimestampMs' }
+        mention_text: { type: string }
+        context_subtitle_line_id: { $ref: '#/components/schemas/UUID', nullable: true }
+      required: [title_id, episode_id, current_time_ms, mention_text]
+    ResolveEntityResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+        mention_text: { type: string }
+        candidates:
+          type: array
+          items:
+            type: object
+            properties:
+              character_id: { $ref: '#/components/schemas/UUID' }
+              canonical_name: { type: string }
+              reason: { type: string }
+              confidence: { type: number }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/Warning' }
+      required: [meta, mention_text, candidates, warnings]
