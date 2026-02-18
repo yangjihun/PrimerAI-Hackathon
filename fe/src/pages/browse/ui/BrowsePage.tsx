@@ -57,9 +57,18 @@ export function BrowsePage() {
                 onClick={() => handleTitleClick(title.id)}
               >
                 <div className="browse-card-image">
-                  <div className="browse-card-placeholder">
-                    {title.name.charAt(0)}
-                  </div>
+                  {title.thumbnail_url ? (
+                    <img
+                      src={title.thumbnail_url}
+                      alt={title.name}
+                      className="browse-card-thumbnail"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="browse-card-placeholder">
+                      {title.name.charAt(0)}
+                    </div>
+                  )}
                 </div>
                 <div className="browse-card-info">
                   <h3 className="browse-card-title">{title.name}</h3>
@@ -80,9 +89,18 @@ export function BrowsePage() {
                 onClick={() => handleTitleClick(title.id)}
               >
                 <div className="browse-card-image">
-                  <div className="browse-card-placeholder">
-                    {title.name.charAt(0)}
-                  </div>
+                  {title.thumbnail_url ? (
+                    <img
+                      src={title.thumbnail_url}
+                      alt={title.name}
+                      className="browse-card-thumbnail"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="browse-card-placeholder">
+                      {title.name.charAt(0)}
+                    </div>
+                  )}
                 </div>
                 <div className="browse-card-info">
                   <h3 className="browse-card-title">{title.name}</h3>

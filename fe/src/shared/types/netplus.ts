@@ -4,6 +4,7 @@ export type Title = {
   id: UUID;
   name: string;
   description: string;
+  thumbnail_url?: string;
 };
 
 export type Episode = {
