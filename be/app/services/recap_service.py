@@ -5,6 +5,7 @@ from app.api.schemas import (
     RecapPayload,
     RecapRequest,
     RecapResponse,
+    ResponseStyle,
     WarningItem,
 )
 from app.llm.openai_client import OpenAIClient
@@ -29,6 +30,18 @@ def _language_instruction(language: str | None) -> str:
     if (language or '').lower().startswith('en'):
         return 'English'
     return 'Korean'
+
+
+def _style_instruction(style: ResponseStyle | None) -> str:
+    selected = style or ResponseStyle.FRIEND
+    if selected == ResponseStyle.ASSISTANT:
+        return 'Use a concise professional assistant tone. Be polite and structured.'
+    if selected == ResponseStyle.CRITIC:
+        return 'Use a film-critic tone. Emphasize pacing, tension, and character arcs.'
+    return (
+        'Use a friendly conversational tone, warm and approachable. '
+        'If output language is Korean, speak in casual banmal style.'
+    )
 
 
 @traceable(name='recap_pipeline', run_type='chain')
@@ -72,13 +85,16 @@ def build_recap(db, req: RecapRequest) -> RecapResponse:
     if llm.enabled and lines:
         system_prompt = load_prompt('recap_prompt.txt')
         output_language = _language_instruction(req.language)
+        style_instruction = _style_instruction(req.response_style)
         context_text = '\n'.join(f'[{line.start_ms}] {line.speaker_text or "?"}: {line.text}' for line in lines)
         user_prompt = (
             f'title_id={req.title_id}\nepisode_id={req.episode_id}\ncurrent_time_ms={req.current_time_ms}\n'
             f'language={req.language or "ko"}\n'
+            f'response_style={(req.response_style or ResponseStyle.FRIEND).value}\n'
             f'preset={req.preset.value}\nmode={req.mode.value if req.mode else "GENERAL"}\n'
             f'Output requirement: All natural-language fields in JSON must be written in {output_language}. '
             f'Do not mix languages.\n'
+            f'Style requirement: {style_instruction}\n'
             f'context:\n{context_text}'
         )
         result = llm.complete_json(system_prompt=system_prompt, user_prompt=user_prompt)
@@ -90,7 +106,10 @@ def build_recap(db, req: RecapRequest) -> RecapResponse:
     if not recap_text:
         recap_text = summarize_lines([line.text for line in lines], max_chars=230)
         if not recap_text:
-            recap_text = '현재 시점 기준으로는 확실한 근거가 부족해서 짧게 정리하기 어려워요.'
+            if (req.response_style or ResponseStyle.FRIEND) == ResponseStyle.FRIEND:
+                recap_text = '현재 시점 기준으로는 확실한 근거가 부족해서 짧게 정리하기 어렵네.'
+            else:
+                recap_text = '현재 시점 기준으로는 확실한 근거가 부족해서 짧게 정리하기 어려워요.'
         bullets = bullets or [line.text for line in lines[:3]]
         watch_points = watch_points or ['새로운 단서가 나오는지', '인물 간 신뢰 변화', '대사의 모순 여부']
 

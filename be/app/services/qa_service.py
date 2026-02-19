@@ -9,6 +9,7 @@ from app.api.schemas import (
     MetaEnvelope,
     QARequest,
     QAResponse,
+    ResponseStyle,
     RelatedGraphFocus,
     WarningItem,
 )
@@ -56,11 +57,42 @@ def _language_instruction(language: str | None) -> str:
     return 'Korean'
 
 
-def _build_fallback_answer(lines) -> AnswerPayload:
+def _style_instruction(style: ResponseStyle | None) -> str:
+    selected = style or ResponseStyle.FRIEND
+    if selected == ResponseStyle.ASSISTANT:
+        return 'Use a concise professional assistant tone. Be polite and structured.'
+    if selected == ResponseStyle.CRITIC:
+        return 'Use a film-critic tone. Focus on narrative structure, tension, and character motivation.'
+    return (
+        'Use a friendly conversational tone, warm and approachable. '
+        'If output language is Korean, speak in casual banmal style.'
+    )
+
+
+def _styled_defaults(style: ResponseStyle | None) -> tuple[str, str]:
+    selected = style or ResponseStyle.FRIEND
+    if selected == ResponseStyle.ASSISTANT:
+        return (
+            '현재 시점 기준으로는 근거가 제한적이라 확정적으로 판단하기 어렵습니다.',
+            '확인 가능한 근거 범위에서만 정리해 드릴게요.',
+        )
+    if selected == ResponseStyle.CRITIC:
+        return (
+            '현재 시점의 단서만 보면 갈등의 동력은 보이지만 결론을 단정하기엔 이릅니다.',
+            '서사의 장치와 인물 동기를 중심으로 해석해 볼 수 있습니다.',
+        )
+    return (
+        '현재 시점 기준으로는 확실한 근거가 부족해서 단정하긴 어려워.',
+        '확보된 단서 중심으로 같이 정리해보자.',
+    )
+
+
+def _build_fallback_answer(lines, *, style: ResponseStyle | None) -> AnswerPayload:
+    default_conclusion, default_context = _styled_defaults(style)
     if not lines:
         return AnswerPayload(
-            conclusion='현재 시점 기준으로는 확실한 근거가 부족해서 단정하긴 어려워.',
-            context=['질문과 직접 연결되는 대사가 충분히 확보되지 않았어요.'],
+            conclusion=default_conclusion,
+            context=[default_context],
             interpretations=[
                 Interpretation(label='A', text='오해로 인한 갈등 가능성', confidence=0.35),
                 Interpretation(label='B', text='배경 사건이 아직 드러나지 않았을 가능성', confidence=0.28),
@@ -69,7 +101,12 @@ def _build_fallback_answer(lines) -> AnswerPayload:
         )
 
     first = lines[0]
-    conclusion = f'핵심은 {first.speaker_text or "인물"}의 최근 발언이 갈등의 단서로 보인다는 점이야.'
+    if (style or ResponseStyle.FRIEND) == ResponseStyle.ASSISTANT:
+        conclusion = f'핵심은 {first.speaker_text or "인물"}의 최근 발언이 현재 갈등의 단서로 보인다는 점입니다.'
+    elif (style or ResponseStyle.FRIEND) == ResponseStyle.CRITIC:
+        conclusion = f'이 장면의 긴장은 {first.speaker_text or "인물"}의 최근 발언에서 비롯됩니다.'
+    else:
+        conclusion = f'핵심은 {first.speaker_text or "인물"}의 최근 발언이 갈등의 단서로 보인다는 점이야.'
     context = [f'[{line.start_ms}] {line.text}' for line in lines[:3]]
     return AnswerPayload(
         conclusion=conclusion,
@@ -144,13 +181,16 @@ def ask_question(db, req: QARequest) -> QAResponse:
     if llm.enabled and lines:
         system_prompt = load_prompt('qa_prompt.txt')
         output_language = _language_instruction(req.language)
+        style_instruction = _style_instruction(req.response_style)
         context_text = '\n'.join(f'[{line.start_ms}] {line.speaker_text or "?"}: {line.text}' for line in lines)
         user_prompt = (
             f'title_id={req.title_id}\nepisode_id={req.episode_id}\ncurrent_time_ms={req.current_time_ms}\n'
             f'language={req.language or "ko"}\n'
+            f'response_style={(req.response_style or ResponseStyle.FRIEND).value}\n'
             f'question={req.question}\n'
             f'Output requirement: All natural-language fields in JSON must be written in {output_language}. '
             f'Do not mix languages.\n'
+            f'Style requirement: {style_instruction}\n'
             f'context:\n{context_text}'
         )
         result = llm.complete_json(system_prompt=system_prompt, user_prompt=user_prompt)
@@ -185,7 +225,7 @@ def ask_question(db, req: QARequest) -> QAResponse:
             )
 
     if not answer:
-        answer = _build_fallback_answer(lines)
+        answer = _build_fallback_answer(lines, style=req.response_style)
 
     answer = enforce_degrade_if_needed(answer, evidences, warnings)
 

@@ -64,6 +64,12 @@ class RecapMode(str, Enum):
     CONFLICT_FOCUSED = 'CONFLICT_FOCUSED'
 
 
+class ResponseStyle(str, Enum):
+    FRIEND = 'FRIEND'
+    ASSISTANT = 'ASSISTANT'
+    CRITIC = 'CRITIC'
+
+
 class RelationType(str, Enum):
     FAMILY = 'FAMILY'
     ROMANCE = 'ROMANCE'
@@ -82,6 +88,7 @@ class RecapRequest(BaseModel):
     preset: RecapPreset
     mode: RecapMode | None = None
     language: str | None = 'ko'
+    response_style: ResponseStyle | None = ResponseStyle.FRIEND
 
     @field_validator('current_time_ms')
     @classmethod
@@ -124,6 +131,7 @@ class QARequest(BaseModel):
     question: str = Field(min_length=1)
     focus: QARequestFocus | None = None
     language: str | None = 'ko'
+    response_style: ResponseStyle | None = ResponseStyle.FRIEND
 
     @field_validator('current_time_ms')
     @classmethod

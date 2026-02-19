@@ -3,6 +3,7 @@ import { WatchPage } from "../pages/watch/ui/WatchPage";
 import { BrowsePage } from "../pages/browse/ui/BrowsePage";
 import { LoginPage } from "../pages/auth/ui/LoginPage";
 import { SignupPage } from "../pages/auth/ui/SignupPage";
+import { MyPage } from "../pages/mypage/ui/MyPage";
 import { Header } from "../widgets/header/ui/Header";
 import { isAuthenticated } from "../shared/lib/auth";
 import "./index.css";
@@ -48,6 +49,15 @@ function App() {
             <PrivateRoute>
               <Header />
               <WatchPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/mypage"
+          element={
+            <PrivateRoute>
+              <Header />
+              <MyPage />
             </PrivateRoute>
           }
         />

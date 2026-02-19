@@ -1,9 +1,16 @@
 import { FormEvent, useState } from "react";
-import type { UUID, QAResponse } from "../../../shared/types/netplus";
+import type { UUID, QAResponse, ResponseStyle } from "../../../shared/types/netplus";
 import { askQuestion } from "../../../shared/api/netplus";
 import { EvidenceQuote } from "../../../shared/ui/EvidenceQuote";
-import { Card } from "../../../shared/ui/Card";
 import { Button } from "../../../shared/ui/Button";
+
+const CHAT_STYLE_STORAGE_KEY = "netplus_chat_response_style";
+
+const STYLE_LABELS: Record<ResponseStyle, string> = {
+  FRIEND: "Friend",
+  ASSISTANT: "Assistant",
+  CRITIC: "Film Critic",
+};
 
 interface CompanionChatPanelProps {
   titleId: UUID;
@@ -26,6 +33,20 @@ export function CompanionChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [responseStyle, setResponseStyle] = useState<ResponseStyle>(() => {
+    if (typeof window === "undefined") return "FRIEND";
+    const saved = localStorage.getItem(CHAT_STYLE_STORAGE_KEY);
+    if (saved === "FRIEND" || saved === "ASSISTANT" || saved === "CRITIC") return saved;
+    return "FRIEND";
+  });
+
+  const handleStyleChange = (value: string) => {
+    if (value !== "FRIEND" && value !== "ASSISTANT" && value !== "CRITIC") return;
+    setResponseStyle(value);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CHAT_STYLE_STORAGE_KEY, value);
+    }
+  };
 
   const handleSend = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,6 +68,7 @@ export function CompanionChatPanel({
         episode_id: episodeId,
         current_time_ms: currentTimeMs,
         question: input,
+        response_style: responseStyle,
       });
 
       const assistantMessage: ChatMessage = {
@@ -89,6 +111,7 @@ export function CompanionChatPanel({
         episode_id: episodeId,
         current_time_ms: currentTimeMs,
         question,
+        response_style: responseStyle,
       });
 
       const assistantMessage: ChatMessage = {
@@ -108,6 +131,22 @@ export function CompanionChatPanel({
 
   return (
     <div className="companion-chat-panel">
+      <div className="chat-style-picker">
+        <label htmlFor="chat-style-select">Style</label>
+        <select
+          id="chat-style-select"
+          value={responseStyle}
+          onChange={(e) => handleStyleChange(e.target.value)}
+          disabled={loading}
+        >
+          {(["FRIEND", "ASSISTANT", "CRITIC"] as ResponseStyle[]).map((style) => (
+            <option key={style} value={style}>
+              {STYLE_LABELS[style]}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="preset-buttons">
         <Button
           variant="ghost"

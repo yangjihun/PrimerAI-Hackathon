@@ -82,6 +82,7 @@ export type GraphResponse = {
 
 export type RecapPreset = "TWENTY_SEC" | "ONE_MIN" | "THREE_MIN";
 export type RecapMode = "GENERAL" | "CHARACTER_FOCUSED" | "CONFLICT_FOCUSED";
+export type ResponseStyle = "FRIEND" | "ASSISTANT" | "CRITIC";
 
 export type RecapRequest = {
   title_id: UUID;
@@ -89,6 +90,7 @@ export type RecapRequest = {
   current_time_ms: number;
   preset: RecapPreset;
   mode?: RecapMode;
+  response_style?: ResponseStyle;
 };
 
 export type RecapResponse = {
@@ -110,6 +112,7 @@ export type QARequest = {
   episode_id: UUID;
   current_time_ms: number;
   question: string;
+  response_style?: ResponseStyle;
   focus?: {
     character_ids?: UUID[];
     relation_id?: UUID | null;

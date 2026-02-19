@@ -38,6 +38,11 @@ export function Header() {
     navigate("/login", { replace: true });
   };
 
+  const handleMyPage = () => {
+    setShowMenu(false);
+    navigate("/mypage");
+  };
+
   const handlePlanChange = (planId: PlanType) => {
     setCurrentPlan(planId); // 상태 업데이트
     savePlan(planId); // localStorage에 저장
@@ -79,6 +84,12 @@ export function Header() {
                 <div className="header-dropdown-item">
                   <span className="header-dropdown-email">{user.email}</span>
                 </div>
+                <button
+                  className="header-dropdown-item header-dropdown-button"
+                  onClick={handleMyPage}
+                >
+                  My Page
+                </button>
                 <button
                   className="header-dropdown-item header-dropdown-button"
                   onClick={handleLogout}
