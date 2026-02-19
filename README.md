@@ -61,3 +61,4 @@ Both `be` and `fe` ignore local env files via `.gitignore`:
 If needed, keep committed samples as:
 
 - `.env.example`
+cd fe

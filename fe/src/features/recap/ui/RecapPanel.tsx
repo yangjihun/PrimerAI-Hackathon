@@ -4,6 +4,7 @@ import { createRecap } from "../../../shared/api/netplus";
 import { EvidenceQuote } from "../../../shared/ui/EvidenceQuote";
 import { Card } from "../../../shared/ui/Card";
 import { Button } from "../../../shared/ui/Button";
+import { consumeAiUsage, getAiUsageStatus, type AiUsageStatus } from "../../../shared/lib/subscription";
 
 interface RecapPanelProps {
   titleId: UUID;
@@ -20,8 +21,18 @@ export function RecapPanel({
   const [mode, setMode] = useState<RecapMode | undefined>("CONFLICT_FOCUSED");
   const [recap, setRecap] = useState<RecapResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [aiUsage, setAiUsage] = useState<AiUsageStatus>(() => getAiUsageStatus());
 
   const handleGenerate = async () => {
+    setError("");
+    const usage = consumeAiUsage();
+    setAiUsage(usage.status);
+    if (!usage.allowed) {
+      setError("무료 플랜 AI 체험 3회를 모두 사용했습니다. 무제한 사용을 위해 요금제를 업그레이드하세요.");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await createRecap({
@@ -34,6 +45,7 @@ export function RecapPanel({
       setRecap(response);
     } catch (error) {
       console.error("Failed to generate recap:", error);
+      setError("리캡 생성에 실패했습니다. 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -42,6 +54,12 @@ export function RecapPanel({
   return (
     <div className="recap-panel">
       <div className="recap-controls">
+        {!aiUsage.isUnlimited && (
+          <div className="ai-trial-note">
+            AI 무료 체험 잔여 횟수: {aiUsage.remaining}/{aiUsage.limit}
+          </div>
+        )}
+        {error && <div className="ai-trial-error">{error}</div>}
         <div className="preset-buttons">
           <Button
             variant={preset === "TWENTY_SEC" ? "primary" : "ghost"}

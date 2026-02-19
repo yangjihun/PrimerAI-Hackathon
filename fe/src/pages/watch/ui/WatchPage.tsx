@@ -4,6 +4,11 @@ import type { UUID, Title, Episode } from "../../../shared/types/netplus";
 import { listTitles, listEpisodes } from "../../../shared/api/netplus";
 import { NetPlusSidebar } from "../../../widgets/netplus-sidebar/ui/NetPlusSidebar";
 import { msToClock } from "../../../shared/lib/utils";
+import {
+  getCurrentPlan,
+  getFreeSelectedTitleId,
+  lockFreeTitleSelection,
+} from "../../../shared/lib/subscription";
 
 export function WatchPage() {
   const [searchParams] = useSearchParams();
@@ -17,18 +22,43 @@ export function WatchPage() {
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<UUID>("");
   const [currentTimeMs, setCurrentTimeMs] = useState(615_000);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [watchLimitMessage, setWatchLimitMessage] = useState("");
 
   useEffect(() => {
     async function loadTitles() {
       const data = await listTitles();
       setTitles(data);
       if (data.length > 0) {
-        const targetId = titleIdParam || data[0].id;
-        setSelectedTitleId(targetId);
+        const requestedId =
+          titleIdParam && data.some((title) => title.id === titleIdParam)
+            ? titleIdParam
+            : data[0].id;
+
+        if (getCurrentPlan() === "free") {
+          const alreadySelected = getFreeSelectedTitleId();
+          if (alreadySelected && requestedId !== alreadySelected) {
+            const targetId = data.some((title) => title.id === alreadySelected)
+              ? alreadySelected
+              : data[0].id;
+            setWatchLimitMessage("무료 플랜은 선택한 1개 작품만 시청할 수 있어요.");
+            setSelectedTitleId(targetId);
+            navigate(`/watch?titleId=${targetId}`, { replace: true });
+            return;
+          }
+
+          const selection = lockFreeTitleSelection(requestedId);
+          if (selection.newlySelected) {
+            setWatchLimitMessage("무료 플랜 작품이 선택되어 고정되었습니다.");
+          } else {
+            setWatchLimitMessage("");
+          }
+        }
+
+        setSelectedTitleId(requestedId);
       }
     }
     loadTitles();
-  }, [titleIdParam]);
+  }, [titleIdParam, navigate]);
 
   useEffect(() => {
     async function loadEpisodes() {
@@ -54,6 +84,9 @@ export function WatchPage() {
       </div>
       <div className={`watch-main ${isSidebarOpen ? "sidebar-open" : ""}`} data-sidebar-open={isSidebarOpen}>
         <div className="watch-player-section">
+          {watchLimitMessage && (
+            <div className="watch-limit-banner">{watchLimitMessage}</div>
+          )}
           <div className="watch-player-container">
             <div className="watch-player-placeholder">
               <div className="player-content">
@@ -83,7 +116,22 @@ export function WatchPage() {
             <div className="watch-selectors">
               <select
                 value={selectedTitleId}
-                onChange={(e) => setSelectedTitleId(e.target.value)}
+                onChange={(e) => {
+                  const nextTitleId = e.target.value;
+                  if (getCurrentPlan() === "free") {
+                    const selection = lockFreeTitleSelection(nextTitleId);
+                    if (!selection.allowed) {
+                      setWatchLimitMessage("무료 플랜은 선택한 1개 작품만 시청할 수 있어요.");
+                      return;
+                    }
+                    if (selection.newlySelected) {
+                      setWatchLimitMessage("무료 플랜 작품이 선택되어 고정되었습니다.");
+                    } else {
+                      setWatchLimitMessage("");
+                    }
+                  }
+                  setSelectedTitleId(nextTitleId);
+                }}
                 className="watch-select"
               >
                 {titles.map((title) => (

@@ -26,6 +26,7 @@ interface SignupPayload {
 
 const USER_STORAGE_KEY = "netplus_user";
 const AUTH_CHANGED_EVENT = "netplus-auth-changed";
+const GUEST_TOKEN = "netplus_guest_access_token";
 
 function emitAuthChanged(): void {
   if (typeof window === "undefined") {
@@ -135,4 +136,16 @@ export function logout(): void {
   setAccessToken(null);
   setCurrentUser(null);
   emitAuthChanged();
+}
+
+export function continueAsGuest(): User {
+  const guestUser: User = {
+    id: "guest-user",
+    email: "guest@netplus.local",
+    name: "Guest",
+    created_at: null,
+  };
+  setAccessToken(GUEST_TOKEN);
+  setCurrentUser(guestUser);
+  return guestUser;
 }

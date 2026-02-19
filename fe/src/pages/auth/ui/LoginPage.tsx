@@ -2,7 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../../shared/api/http";
-import { loginWithBackend } from "../../../shared/lib/auth";
+import { continueAsGuest, loginWithBackend } from "../../../shared/lib/auth";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -28,6 +28,11 @@ export function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGuestContinue = () => {
+    continueAsGuest();
+    navigate("/browse", { replace: true });
   };
 
   return (
@@ -69,6 +74,14 @@ export function LoginPage() {
 
           <button type="submit" className="auth-submit" disabled={loading}>
             {loading ? "Logging in..." : "Log in"}
+          </button>
+          <button
+            type="button"
+            className="auth-submit auth-submit-secondary"
+            onClick={handleGuestContinue}
+            disabled={loading}
+          >
+            Continue as guest
           </button>
         </form>
 

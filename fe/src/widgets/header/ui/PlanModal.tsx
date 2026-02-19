@@ -1,4 +1,5 @@
 import { PLANS, formatPrice, type PlanType } from "../../../shared/lib/subscription";
+import { createPortal } from "react-dom";
 
 interface PlanModalProps {
   currentPlan: PlanType;
@@ -7,7 +8,7 @@ interface PlanModalProps {
 }
 
 export function PlanModal({ currentPlan, onClose, onPlanChange }: PlanModalProps) {
-  return (
+  const modal = (
     <div className="plan-modal-overlay" onClick={onClose}>
       <div className="plan-modal" onClick={(e) => e.stopPropagation()}>
         <div className="plan-modal-header">
@@ -83,5 +84,11 @@ export function PlanModal({ currentPlan, onClose, onPlanChange }: PlanModalProps
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return modal;
+  }
+
+  return createPortal(modal, document.body);
 }
 
