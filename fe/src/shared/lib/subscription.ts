@@ -13,10 +13,30 @@ export interface SubscriptionPlan {
 }
 
 const PLAN_STORAGE_KEY = "netplus_subscription";
+const PLAN_CHANGED_EVENT = "netplus-plan-changed";
 const FREE_AI_TRIAL_STORAGE_KEY = "netplus_free_ai_trial_used";
 const FREE_SELECTED_TITLE_STORAGE_KEY = "netplus_free_selected_title_id";
 const FREE_AI_TRIAL_LIMIT = 3;
 const FREE_WATCHABLE_TITLES_LIMIT = 1;
+
+function emitPlanChanged(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(PLAN_CHANGED_EVENT));
+}
+
+export function subscribePlanChanged(handler: () => void): () => void {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const wrapped = () => handler();
+  window.addEventListener(PLAN_CHANGED_EVENT, wrapped);
+  window.addEventListener("storage", wrapped);
+  return () => {
+    window.removeEventListener(PLAN_CHANGED_EVENT, wrapped);
+    window.removeEventListener("storage", wrapped);
+  };
+}
 
 export const PLANS: Record<PlanType, SubscriptionPlan> = {
   free: {
@@ -82,6 +102,7 @@ export function getCurrentPlan(): PlanType {
 export function setCurrentPlan(plan: PlanType): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(PLAN_STORAGE_KEY, plan);
+  emitPlanChanged();
 }
 
 function getFreeAiUsedCount(): number {

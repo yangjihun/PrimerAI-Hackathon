@@ -1093,6 +1093,73 @@ body {
   font-size: 0.9rem;
 }
 
+.browse-membership-banner {
+  position: relative;
+  margin-bottom: 28px;
+  border-radius: 20px;
+  padding: 24px 20px;
+  background: linear-gradient(135deg, #161638 0%, #101b4a 45%, #18162d 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.browse-membership-banner::before {
+  content: "";
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #7d0d17, #e50914, #7d0d17);
+}
+
+.browse-membership-banner-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.browse-membership-banner-copy {
+  min-width: 0;
+}
+
+.browse-membership-banner-title {
+  margin: 0 0 4px;
+  font-size: clamp(1.1rem, 2.2vw, 2rem);
+  line-height: 1.2;
+}
+
+.browse-membership-banner-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.browse-membership-banner-cta {
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.browse-membership-banner-cta:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+}
+
 .browse-section {
   margin-bottom: 48px;
 }
@@ -1102,6 +1169,120 @@ body {
   font-weight: 600;
   margin-bottom: 24px;
   color: var(--text);
+}
+
+.browse-trending-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 170px;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 6px 8px 16px 10px;
+  scrollbar-width: thin;
+}
+
+.browse-trending-card {
+  position: relative;
+  border: 0;
+  background: transparent;
+  padding: 0 0 0 34px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.browse-trending-image-wrap {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a1a23 0%, #0f0f17 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.browse-trending-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s;
+}
+
+.browse-trending-card:hover .browse-trending-thumbnail {
+  transform: scale(1.06);
+}
+
+.browse-trending-rank {
+  position: absolute;
+  left: 0;
+  bottom: 16px;
+  font-size: clamp(3.4rem, 7vw, 5rem);
+  font-weight: 900;
+  line-height: 1;
+  color: rgba(10, 10, 10, 0.9);
+  -webkit-text-stroke: 1.6px rgba(255, 255, 255, 0.86);
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.browse-trending-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 32px 10px 8px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  color: #f3f3f3;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browse-membership-section {
+  background: linear-gradient(160deg, rgba(31, 28, 63, 0.65), rgba(18, 18, 26, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.browse-membership-subtitle {
+  margin: -10px 0 20px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.browse-membership-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.browse-membership-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(42, 41, 82, 0.8), rgba(37, 24, 52, 0.85));
+  border-radius: 14px;
+  padding: 18px;
+  min-height: 180px;
+}
+
+.browse-membership-title {
+  margin: 0 0 10px;
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.browse-membership-description {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.browse-membership-help {
+  margin: 18px 0 0;
+  color: var(--muted);
 }
 
 .browse-grid {
@@ -1667,9 +1848,39 @@ body {
     padding: 32px 16px;
   }
 
+  .browse-membership-banner {
+    grid-template-columns: 1fr;
+    padding: 18px 14px;
+    border-radius: 14px;
+  }
+
+  .browse-membership-banner-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    font-size: 1.6rem;
+  }
+
+  .browse-membership-banner-cta {
+    width: 100%;
+  }
+
   .browse-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 16px;
+  }
+
+  .browse-trending-row {
+    grid-auto-columns: 138px;
+    gap: 10px;
+  }
+
+  .browse-membership-section {
+    padding: 18px;
+  }
+
+  .browse-membership-grid {
+    grid-template-columns: 1fr;
   }
 
   .watch-header {
