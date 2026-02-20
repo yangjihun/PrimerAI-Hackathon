@@ -377,6 +377,25 @@ body {
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
 }
 
+.netplus-sidebar.inline {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  border-left: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: none;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.netplus-sidebar.inline .netplus-content {
+  max-height: 520px;
+}
+
 .netplus-sidebar:not(.open) {
   display: none;
 }
@@ -2254,6 +2273,75 @@ body {
     padding: 16px;
   }
 
+  .watch-back-section {
+    padding: 10px 16px;
+  }
+
+  .watch-back-btn {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .watch-player-container {
+    margin-bottom: 16px;
+    border-radius: 10px;
+  }
+
+  .watch-video-subtitle-overlay {
+    bottom: 12px;
+    padding: 0 10px;
+  }
+
+  .watch-video-subtitle-text {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    max-width: 100%;
+  }
+
+  .watch-info {
+    margin-bottom: 20px;
+  }
+
+  .watch-selectors {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .watch-select {
+    width: 100%;
+  }
+
+  .watch-subtitles-panel {
+    margin-top: 16px;
+  }
+
+  .watch-subtitle-list {
+    max-height: 220px;
+  }
+
+  .watch-subtitle-line {
+    padding: 9px 10px;
+    border-radius: 10px;
+  }
+
+  .watch-subtitle-time {
+    min-width: 56px;
+    font-size: 0.78rem;
+  }
+
+  .watch-subtitle-text {
+    font-size: 0.88rem;
+    line-height: 1.35;
+  }
+
+  .watch-card-row {
+    gap: 12px;
+  }
+
+  .watch-card-skeleton {
+    min-width: 160px;
+  }
+
   .netplus-sidebar {
     width: 100%;
     max-width: 100%;
@@ -2264,6 +2352,13 @@ body {
   .netplus-sidebar.open,
   .netplus-sidebar[data-open="true"] {
     transform: translateX(0);
+  }
+
+  .netplus-sidebar.inline {
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 10px;
   }
 
   .watch-main {
@@ -2292,6 +2387,53 @@ body {
 
   .auth-container {
     padding: 32px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .watch-player-section {
+    padding: 12px;
+  }
+
+  .watch-back-section {
+    padding: 10px 12px;
+  }
+
+  .watch-section-title {
+    font-size: 1.08rem;
+    margin-bottom: 10px;
+  }
+
+  .player-title {
+    font-size: 0.94rem;
+    margin-bottom: 6px;
+    padding: 0 4px;
+  }
+
+  .player-time {
+    font-size: 0.82rem;
+    margin-bottom: 10px;
+  }
+
+  .watch-video-subtitle-text {
+    font-size: 0.9rem;
+  }
+
+  .watch-subtitle-list {
+    max-height: 190px;
+  }
+
+  .watch-subtitle-line {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .watch-subtitle-time {
+    min-width: 50px;
+  }
+
+  .watch-card-skeleton {
+    min-width: 140px;
   }
 }
 

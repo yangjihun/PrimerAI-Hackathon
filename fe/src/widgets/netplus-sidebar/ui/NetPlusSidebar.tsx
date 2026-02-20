@@ -11,6 +11,7 @@ interface NetPlusSidebarProps {
   episodeName?: string;
   isOpen: boolean;
   onToggle: () => void;
+  variant?: "overlay" | "inline";
 }
 
 type TabType = "chat" | "recap";
@@ -22,10 +23,12 @@ export function NetPlusSidebar({
   episodeName,
   isOpen,
   onToggle,
+  variant = "overlay",
 }: NetPlusSidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>("chat");
+  const effectiveOpen = variant === "inline" ? true : isOpen;
 
-  if (!isOpen) {
+  if (!effectiveOpen && variant === "overlay") {
     return (
       <button className="netplus-toggle-btn" onClick={onToggle} aria-label="NetPlus 열기">
         <span className="netplus-icon">NP</span>
@@ -34,7 +37,10 @@ export function NetPlusSidebar({
   }
 
   return (
-    <div className={`netplus-sidebar ${isOpen ? "open" : ""}`} data-open={isOpen}>
+    <div
+      className={`netplus-sidebar ${effectiveOpen ? "open" : ""} ${variant}`}
+      data-open={effectiveOpen}
+    >
       <div className="netplus-header">
         <div className="netplus-logo">
           <span className="netplus-logo-text">NetPlus</span>
@@ -44,9 +50,11 @@ export function NetPlusSidebar({
             </span>
           )}
         </div>
-        <button className="netplus-close-btn" onClick={onToggle} aria-label="NetPlus 닫기">
-          ×
-        </button>
+        {variant === "overlay" && (
+          <button className="netplus-close-btn" onClick={onToggle} aria-label="NetPlus 닫기">
+            ×
+          </button>
+        )}
       </div>
 
       <div className="netplus-tabs">

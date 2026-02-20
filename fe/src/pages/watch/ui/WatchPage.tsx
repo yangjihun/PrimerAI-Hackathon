@@ -26,6 +26,7 @@ export function WatchPage() {
   const [subtitleLines, setSubtitleLines] = useState<SubtitleLine[]>([]);
   const [subtitleError, setSubtitleError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [watchLimitMessage, setWatchLimitMessage] = useState("");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -137,6 +138,14 @@ export function WatchPage() {
     return () => window.clearInterval(intervalId);
   }, [hasVideoSource, isVideoPlaying]);
 
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    const updateLayout = () => setIsMobileLayout(media.matches);
+    updateLayout();
+    media.addEventListener("change", updateLayout);
+    return () => media.removeEventListener("change", updateLayout);
+  }, []);
+
   return (
     <div className="watch-page">
       <div className="watch-back-section">
@@ -146,8 +155,8 @@ export function WatchPage() {
       </div>
 
       <div
-        className={`watch-main ${isSidebarOpen ? "sidebar-open" : ""}`}
-        data-sidebar-open={isSidebarOpen}
+        className={`watch-main ${!isMobileLayout && isSidebarOpen ? "sidebar-open" : ""}`}
+        data-sidebar-open={!isMobileLayout && isSidebarOpen}
       >
         <div className="watch-player-section">
           {watchLimitMessage && <div className="watch-limit-banner">{watchLimitMessage}</div>}
@@ -230,6 +239,22 @@ export function WatchPage() {
             )}
           </div>
 
+          {isMobileLayout && selectedTitleId && selectedEpisodeId && (
+            <NetPlusSidebar
+              titleId={selectedTitleId}
+              episodeId={selectedEpisodeId}
+              currentTimeMs={currentTimeMs}
+              episodeName={
+                selectedEpisode
+                  ? `S${selectedEpisode.season}E${selectedEpisode.episode_number}`
+                  : undefined
+              }
+              isOpen
+              onToggle={() => {}}
+              variant="inline"
+            />
+          )}
+
           <div className="watch-info">
             <div className="watch-selectors">
               <select
@@ -310,21 +335,23 @@ export function WatchPage() {
           </div>
         </div>
 
-        {selectedTitleId && selectedEpisodeId && (
-          <NetPlusSidebar
-            titleId={selectedTitleId}
-            episodeId={selectedEpisodeId}
-            currentTimeMs={currentTimeMs}
-            episodeName={
-              selectedEpisode
-                ? `S${selectedEpisode.season}E${selectedEpisode.episode_number}`
-                : undefined
-            }
-            isOpen={isSidebarOpen}
-            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-          />
-        )}
       </div>
+
+      {!isMobileLayout && selectedTitleId && selectedEpisodeId && (
+        <NetPlusSidebar
+          titleId={selectedTitleId}
+          episodeId={selectedEpisodeId}
+          currentTimeMs={currentTimeMs}
+          episodeName={
+            selectedEpisode
+              ? `S${selectedEpisode.season}E${selectedEpisode.episode_number}`
+              : undefined
+          }
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+          variant="overlay"
+        />
+      )}
     </div>
   );
 }
