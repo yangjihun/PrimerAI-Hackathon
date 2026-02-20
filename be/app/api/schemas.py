@@ -377,6 +377,7 @@ class SubtitleLineCreate(BaseModel):
 
 class SubtitleLineBulkRequest(BaseModel):
     lines: list[SubtitleLineCreate] = Field(min_length=1)
+    replace_existing: bool = False
 
 
 class IngestSubtitleLinesResponse(BaseModel):

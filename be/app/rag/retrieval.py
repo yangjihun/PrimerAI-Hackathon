@@ -82,3 +82,22 @@ def resolve_lines_from_chunks(
         .limit(max_lines)
     )
     return list(reversed(list(db.scalars(stmt).all())))
+
+
+def fallback_recent_lines(
+    db: Session,
+    *,
+    episode_id: str,
+    current_time_ms: int,
+    max_lines: int = 6,
+) -> list[SubtitleLine]:
+    stmt = (
+        select(SubtitleLine)
+        .where(
+            SubtitleLine.episode_id == episode_id,
+            SubtitleLine.start_ms <= current_time_ms,
+        )
+        .order_by(SubtitleLine.start_ms.desc())
+        .limit(max_lines)
+    )
+    return list(reversed(list(db.scalars(stmt).all())))

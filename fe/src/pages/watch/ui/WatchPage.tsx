@@ -22,6 +22,7 @@ export function WatchPage() {
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<UUID>("");
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [videoDurationMs, setVideoDurationMs] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [subtitleLines, setSubtitleLines] = useState<SubtitleLine[]>([]);
   const [subtitleError, setSubtitleError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -81,6 +82,7 @@ export function WatchPage() {
   useEffect(() => {
     setCurrentTimeMs(0);
     setVideoDurationMs(0);
+    setIsVideoPlaying(false);
   }, [selectedEpisodeId]);
 
   useEffect(() => {
@@ -119,6 +121,17 @@ export function WatchPage() {
     }
   };
 
+  useEffect(() => {
+    if (!hasVideoSource || !isVideoPlaying) return;
+    const intervalId = window.setInterval(() => {
+      const node = videoRef.current;
+      if (!node) return;
+      const nextMs = Math.round(node.currentTime * 1000);
+      setCurrentTimeMs((prev) => (Math.abs(prev - nextMs) >= 100 ? nextMs : prev));
+    }, 250);
+    return () => window.clearInterval(intervalId);
+  }, [hasVideoSource, isVideoPlaying]);
+
   return (
     <div className="watch-page">
       <div className="watch-back-section">
@@ -149,16 +162,22 @@ export function WatchPage() {
                     src={selectedEpisode?.video_url ?? undefined}
                     controls
                     className="watch-video-element"
-                    onLoadedMetadata={(e) => {
-                      const duration = Number(e.currentTarget.duration);
-                      if (Number.isFinite(duration) && !Number.isNaN(duration)) {
-                        setVideoDurationMs(Math.round(duration * 1000));
-                      }
-                    }}
-                    onTimeUpdate={(e) => {
-                      setCurrentTimeMs(Math.round(e.currentTarget.currentTime * 1000));
-                    }}
-                  />
+                  onLoadedMetadata={(e) => {
+                    const duration = Number(e.currentTarget.duration);
+                    if (Number.isFinite(duration) && !Number.isNaN(duration)) {
+                      setVideoDurationMs(Math.round(duration * 1000));
+                    }
+                  }}
+                  onPlay={() => setIsVideoPlaying(true)}
+                  onPause={() => setIsVideoPlaying(false)}
+                  onEnded={() => setIsVideoPlaying(false)}
+                  onSeeked={(e) => {
+                    setCurrentTimeMs(Math.round(e.currentTarget.currentTime * 1000));
+                  }}
+                  onTimeUpdate={(e) => {
+                    setCurrentTimeMs(Math.round(e.currentTarget.currentTime * 1000));
+                  }}
+                />
                   {currentSubtitle && (
                     <div className="watch-video-subtitle-overlay">
                       <div className="watch-video-subtitle-text">

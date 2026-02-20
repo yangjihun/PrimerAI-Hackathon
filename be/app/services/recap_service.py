@@ -11,7 +11,7 @@ from app.api.schemas import (
 from app.llm.openai_client import OpenAIClient
 from app.llm.prompting import load_prompt
 from app.rag.evidence_select import build_evidences_from_lines
-from app.rag.retrieval import resolve_lines_from_chunks, retrieve_chunks
+from app.rag.retrieval import fallback_recent_lines, resolve_lines_from_chunks, retrieve_chunks
 from app.rag.validator import sanitize_evidences
 from app.utils.text import summarize_lines
 
@@ -67,6 +67,13 @@ def build_recap(db, req: RecapRequest) -> RecapResponse:
         chunks=chunks,
         max_lines=6,
     )
+    if not lines:
+        lines = fallback_recent_lines(
+            db,
+            episode_id=req.episode_id,
+            current_time_ms=req.current_time_ms,
+            max_lines=6,
+        )
 
     evidences = build_evidences_from_lines(lines, max_lines_per_evidence=2)
     evidences = sanitize_evidences(

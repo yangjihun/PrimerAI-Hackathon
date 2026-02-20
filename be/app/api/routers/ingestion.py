@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user, get_db
@@ -25,6 +25,7 @@ from app.api.schemas import (
 )
 from app.db.models import Episode as EpisodeModel
 from app.db.models import SubtitleLine, Title as TitleModel
+from app.services.chunk_service import rebuild_chunks_for_episodes
 from app.services.media_upload_service import (
     build_cloudinary_image_upload_signature,
     build_cloudinary_video_upload_signature,
@@ -247,6 +248,9 @@ def ingest_subtitle_lines_bulk(
             {'field': 'episode_id', 'reason': f'Episode not found: {missing[0]}'},
         )
 
+    if payload.replace_existing:
+        db.execute(delete(SubtitleLine).where(SubtitleLine.episode_id.in_(episode_ids)))
+
     inserted = 0
     for line in payload.lines:
         row = SubtitleLine(
@@ -261,9 +265,30 @@ def ingest_subtitle_lines_bulk(
         db.add(row)
         inserted += 1
 
+    rebuild_chunks_for_episodes(db, episode_ids)
     db.commit()
     return IngestSubtitleLinesResponse(
         inserted_count=inserted,
         queued_embedding_jobs=inserted,
+    )
+
+
+@router.delete('/episodes/{episode_id}/subtitle-lines', response_model=IngestSubtitleLinesResponse)
+def delete_subtitle_lines_by_episode(
+    episode_id: str,
+    db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_admin_user),
+) -> IngestSubtitleLinesResponse:
+    episode = db.scalar(select(EpisodeModel).where(EpisodeModel.id == episode_id))
+    if episode is None:
+        raise validation_error('Invalid request.', {'field': 'episode_id', 'reason': 'Episode not found'})
+
+    result = db.execute(delete(SubtitleLine).where(SubtitleLine.episode_id == episode_id))
+    rebuild_chunks_for_episodes(db, [episode_id])
+    db.commit()
+    deleted = int(result.rowcount or 0)
+    return IngestSubtitleLinesResponse(
+        inserted_count=deleted,
+        queued_embedding_jobs=0,
     )
 
