@@ -83,11 +83,10 @@ def enforce_degrade_if_needed(
     )
 
     return AnswerPayload(
-        conclusion='현재 시점 기준으로는 확실한 근거가 부족해서 단정하긴 어려워.',
-        context=['자막 기반으로는 질문의 원인을 확정하기 어렵고, 복수 해석이 가능해요.'],
+        conclusion='현재 시점 자막만으로는 질문에 직접 답할 근거가 부족해.',
+        context=['질문 시점을 조금 뒤로 이동하거나, 인물/대사를 포함해 다시 물어봐줘.'],
         interpretations=[
-            Interpretation(label='A', text='상황 오해로 갈등이 커졌을 가능성', confidence=0.35),
-            Interpretation(label='B', text='숨겨진 배경 사건이 아직 드러나지 않았을 가능성', confidence=0.28),
+            Interpretation(label='핵심', text='현재 구간에서 확인 가능한 직접 근거가 없습니다.', confidence=0.3),
         ],
         overall_confidence=0.3,
     )

@@ -62,6 +62,11 @@ _STOPWORDS = {
     '은', '는', '이야', '가', '을', '를', '에', '의', '와', '과', '도', '로', '으로',
     'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'to', 'of', 'in', 'on', 'and',
 }
+_KO_SUFFIXES = (
+    '으로부터', '에게서', '까지는', '까지도', '이라도', '처럼', '부터', '까지',
+    '으로', '에서', '에게', '한테', '께서', '의', '은', '는', '이', '가', '을', '를',
+    '와', '과', '도', '만', '나', '야', '요',
+)
 
 
 def _clean_text_line(text: str) -> str:
@@ -90,9 +95,20 @@ def _clean_lines(values: list[str], *, limit: int) -> list[str]:
     return result
 
 
+def _normalize_token(token: str) -> str:
+    t = token.lower().strip()
+    if len(t) < 2:
+        return t
+    for suffix in _KO_SUFFIXES:
+        if t.endswith(suffix) and len(t) - len(suffix) >= 2:
+            return t[: -len(suffix)]
+    return t
+
+
 def _query_tokens(text: str) -> set[str]:
-    tokens = [t.lower() for t in _TOKEN_RE.findall(text or '')]
-    return {t for t in tokens if len(t) >= 2 and t not in _STOPWORDS}
+    raw_tokens = [t for t in _TOKEN_RE.findall(text or '')]
+    normalized = [_normalize_token(t) for t in raw_tokens]
+    return {t for t in normalized if len(t) >= 2 and t not in _STOPWORDS}
 
 
 def _rerank_lines_for_question(lines: list, question: str, *, limit: int = 6) -> list:
