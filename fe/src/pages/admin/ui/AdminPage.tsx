@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Episode, Title, UUID } from "../../../shared/types/netplus";
 import {
+  deleteTitle,
   deleteTitleThumbnailUrl,
   deleteEpisodeSubtitleLines,
   ingestEpisode,
@@ -522,6 +523,26 @@ export function AdminPage() {
     }
   };
 
+  const handleDeleteTitle = async (titleId: UUID) => {
+    if (loading) return;
+    resetNotice();
+    setLoading(true);
+    try {
+      await deleteTitle(titleId);
+      const nextTitles = titles.filter((title) => title.id !== titleId);
+      setTitles(nextTitles);
+      if (selectedTitleId === titleId) {
+        setSelectedTitleId(nextTitles[0]?.id ?? "");
+      }
+      setMessage("Title deleted.");
+    } catch (requestError) {
+      console.error(requestError);
+      setError("Failed to delete title.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="admin-page">
       <section className="admin-card">
@@ -592,7 +613,7 @@ export function AdminPage() {
       </section>
 
       <section className="admin-card">
-        <h2>Manage Title Thumbnails</h2>
+        <h2>Manage Titles</h2>
         {titles.length === 0 ? (
           <p className="admin-help">No titles.</p>
         ) : (
@@ -603,14 +624,24 @@ export function AdminPage() {
                   <strong>{title.name}</strong>
                   <div className="admin-episode-url">{title.thumbnail_url ?? "No thumbnail linked"}</div>
                 </div>
-                <button
-                  type="button"
-                  className="admin-danger-btn"
-                  disabled={loading || !title.thumbnail_url}
-                  onClick={() => handleDeleteThumbnail(title.id)}
-                >
-                  Delete Thumbnail
-                </button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="admin-danger-btn"
+                    disabled={loading || !title.thumbnail_url}
+                    onClick={() => handleDeleteThumbnail(title.id)}
+                  >
+                    Delete Thumbnail
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-danger-btn"
+                    disabled={loading}
+                    onClick={() => handleDeleteTitle(title.id)}
+                  >
+                    Delete Title
+                  </button>
+                </div>
               </div>
             ))}
           </div>

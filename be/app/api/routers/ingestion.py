@@ -146,6 +146,20 @@ def update_title_thumbnail_url(
     )
 
 
+@router.delete('/titles/{title_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_title(
+    title_id: str,
+    db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_admin_user),
+):
+    row = db.scalar(select(TitleModel).where(TitleModel.id == title_id))
+    if row is None:
+        raise validation_error('Invalid request.', {'field': 'title_id', 'reason': 'Title not found'})
+
+    db.delete(row)
+    db.commit()
+
+
 @router.delete('/titles/{title_id}/thumbnail-url', response_model=Title)
 def delete_title_thumbnail_url(
     title_id: str,

@@ -542,3 +542,9 @@ export async function deleteTitleThumbnailUrl(titleId: UUID): Promise<Title> {
     method: "DELETE",
   });
 }
+
+export async function deleteTitle(titleId: UUID): Promise<void> {
+  await apiRequest<unknown>(`/api/ingest/titles/${titleId}`, {
+    method: "DELETE",
+  });
+}
