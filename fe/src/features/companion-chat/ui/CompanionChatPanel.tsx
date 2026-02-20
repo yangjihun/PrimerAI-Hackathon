@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { ChatHistoryItem, QAResponse, ResponseStyle, UUID } from "../../../shared/types/netplus";
-import { askQuestion, clearQaHistory, getQaHistory } from "../../../shared/api/netplus";
+import { askQuestionStream, clearQaHistory, getQaHistory } from "../../../shared/api/netplus";
 import { EvidenceQuote } from "../../../shared/ui/EvidenceQuote";
 import { Button } from "../../../shared/ui/Button";
 import { msToClock } from "../../../shared/lib/utils";
@@ -55,6 +55,7 @@ export function CompanionChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [error, setError] = useState("");
@@ -116,30 +117,66 @@ export function CompanionChatPanel({
       content: question,
       timeMs: currentTimeMs,
     };
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantMessageId = `assistant-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        timeMs: currentTimeMs,
+      },
+    ]);
     setLoading(true);
+    setLoadingStatus("질문을 분석하고 있어요.");
 
     try {
-      const response = await askQuestion({
-        title_id: titleId,
-        episode_id: episodeId,
-        current_time_ms: currentTimeMs,
-        question,
-        response_style: responseStyle,
-      });
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: response.answer.conclusion,
-        timeMs: response.meta.current_time_ms,
-        data: response,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const response = await askQuestionStream(
+        {
+          title_id: titleId,
+          episode_id: episodeId,
+          current_time_ms: currentTimeMs,
+          question,
+          response_style: responseStyle,
+        },
+        {
+          onStatus: (status) => {
+            if (status) setLoadingStatus(status);
+          },
+          onToken: (token) => {
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content: `${message.content}${token}` }
+                  : message,
+              ),
+            );
+          },
+        },
+      );
+
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                content: response.answer.conclusion,
+                timeMs: response.meta.current_time_ms,
+                data: response,
+              }
+            : message,
+        ),
+      );
     } catch (requestError) {
       console.error("Failed to ask question:", requestError);
       setError("질문 요청에 실패했습니다. 다시 시도해 주세요.");
+      setMessages((prev) =>
+        prev.filter((message) => message.id !== assistantMessageId || message.content.trim().length > 0),
+      );
     } finally {
       setLoading(false);
+      setLoadingStatus("");
     }
   };
 
@@ -180,6 +217,10 @@ export function CompanionChatPanel({
       setClearing(false);
     }
   };
+
+  const showLoadingBubble =
+    loading &&
+    !(messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && messages[messages.length - 1]?.content);
 
   return (
     <div className="companion-chat-panel">
@@ -257,13 +298,13 @@ export function CompanionChatPanel({
           ))
         )}
 
-        {loading && (
+        {showLoadingBubble && (
           <div className="chat-message chat-message-assistant">
             <div className="chat-content">
               <div className="chat-loading" aria-live="polite" aria-label="답변 생성 중">
                 <span className="chat-loading-spinner" />
                 <span className="chat-loading-text">
-                  생각 중
+                  {loadingStatus || "생각 중"}
                   <span className="chat-loading-dots">
                     <span>.</span>
                     <span>.</span>
@@ -292,3 +333,4 @@ export function CompanionChatPanel({
     </div>
   );
 }
+

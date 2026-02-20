@@ -399,12 +399,54 @@ def _build_casual_answer_with_llm(
     history_block: str,
     style: ResponseStyle | None,
     language: str | None,
+    stream_callback=None,
 ) -> AnswerPayload | None:
     if not llm.enabled:
         return None
 
     output_language = _language_instruction(language)
     style_instruction = _style_instruction(style)
+    if stream_callback:
+        system_prompt = (
+            "You are a friendly daily-life chat assistant.\n"
+            "Answer in plain text only.\n"
+            "Give a direct, practical answer in 2-4 short sentences.\n"
+            "Do not mention episode subtitles, retrieval, intent labels, or JSON.\n"
+        )
+        user_prompt = (
+            f"{history_block}\n"
+            f"question={question}\n"
+            f"language={language or 'ko'}\n"
+            f"response_style={(style or ResponseStyle.FRIEND).value}\n"
+            f"Output language must be {output_language}. Do not mix languages.\n"
+            f"Style requirement: {style_instruction}\n"
+        )
+        streamed = llm.stream_text(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            on_token=stream_callback,
+        )
+        if not streamed:
+            return None
+        return AnswerPayload(
+            conclusion=_clean_text_line(streamed) or streamed,
+            context=[
+                '일상 질문으로 분류되어 일상 대화 모드로 답변했습니다.'
+                if not (language or '').lower().startswith('en')
+                else 'Classified as casual chat and answered in casual mode.'
+            ],
+            interpretations=[
+                Interpretation(
+                    label='INTENT',
+                    text='질문 의도: 일상 대화'
+                    if not (language or '').lower().startswith('en')
+                    else 'Intent: casual chat',
+                    confidence=0.93,
+                )
+            ],
+            overall_confidence=0.9,
+        )
+
     system_prompt = (
         "You are a friendly daily-life chat assistant.\n"
         "Return JSON with fields: conclusion (string), context (array of string, 1-2), "
@@ -531,12 +573,20 @@ def _find_related_relation_id(db, req: QARequest) -> str | None:
 
 
 @traceable(name='qa_pipeline', run_type='chain')
-def ask_question(db, req: QARequest, *, user_id: str | None = None) -> QAResponse:
+def ask_question(
+    db,
+    req: QARequest,
+    *,
+    user_id: str | None = None,
+    stream_callback=None,
+    status_callback=None,
+) -> QAResponse:
     warnings: list[WarningItem] = []
     llm = OpenAIClient()
     settings = get_settings()
     session_id: str | None = None
     history_block = ''
+    emit_status = status_callback or (lambda _msg: None)
 
     if user_id:
         session = _get_or_create_chat_session(
@@ -554,8 +604,10 @@ def ask_question(db, req: QARequest, *, user_id: str | None = None) -> QARespons
         )
         history_block = _render_history_block(history_messages)
 
+    emit_status('질문을 분석하고 있어요.')
     intent = classify_query_intent(req.question)
     if intent.intent == 'CASUAL':
+        emit_status('일상 대화 답변을 생성하고 있어요.')
         warnings.append(
             WarningItem(
                 code='QUESTION_INTENT_CASUAL',
@@ -568,6 +620,7 @@ def ask_question(db, req: QARequest, *, user_id: str | None = None) -> QARespons
             history_block=history_block,
             style=req.response_style,
             language=req.language,
+            stream_callback=stream_callback,
         ) or _build_casual_answer(
             req.question,
             style=req.response_style,
@@ -598,6 +651,7 @@ def ask_question(db, req: QARequest, *, user_id: str | None = None) -> QARespons
             db.commit()
         return response
 
+    emit_status('관련 장면 근거를 찾는 중이에요.')
     chunks = retrieve_chunks(
         db,
         episode_id=req.episode_id,
@@ -631,63 +685,100 @@ def ask_question(db, req: QARequest, *, user_id: str | None = None) -> QARespons
 
     answer = None
     if llm.enabled and lines:
-        system_prompt = load_prompt('qa_prompt.txt')
+        emit_status('답변을 생성하고 있어요.')
         output_language = _language_instruction(req.language)
         style_instruction = _style_instruction(req.response_style)
         context_text = '\n'.join(f'[{line.start_ms}] {line.speaker_text or "?"}: {line.text}' for line in lines)
-        user_prompt = (
-            f'title_id={req.title_id}\nepisode_id={req.episode_id}\ncurrent_time_ms={req.current_time_ms}\n'
-            f'{history_block}\n'
-            f'language={req.language or "ko"}\n'
-            f'response_style={(req.response_style or ResponseStyle.FRIEND).value}\n'
-            f'question={req.question}\n'
-            f'Output requirement: All natural-language fields in JSON must be written in {output_language}. '
-            f'Do not mix languages.\n'
-            f'Style requirement: {style_instruction}\n'
-            'Clarity requirement: give a direct answer first. Avoid A/B, percentages, and repetitive framing.\n'
-            f'context:\n{context_text}'
-        )
-        result = llm.complete_json(system_prompt=system_prompt, user_prompt=user_prompt)
-        if result:
-            raw_interpretations = _as_list(result.get('interpretations', []))
-            parsed_interpretations: list[Interpretation] = []
-            for idx, item in enumerate(raw_interpretations[:2]):
-                if isinstance(item, dict):
-                    text = _clean_text_line(str(item.get('text', '')))
-                    if not text:
-                        continue
-                    parsed_interpretations.append(
-                        Interpretation(
-                            label=str(item.get('label', '핵심'))[:20] or '핵심',
-                            text=text,
-                            confidence=_to_confidence(item.get('confidence', 0.3)),
-                        )
-                    )
-                elif isinstance(item, str):
-                    text = _clean_text_line(item)
-                    if not text:
-                        continue
-                    parsed_interpretations.append(
-                        Interpretation(
-                            label='핵심' if idx == 0 else '보조',
-                            text=text,
-                            confidence=0.3,
-                        )
-                    )
 
-            cleaned_conclusion = _clean_text_line(str(result.get('conclusion', '')).strip())
-            cleaned_context = _clean_lines(
-                [str(item) for item in _as_list(result.get('context', []))],
-                limit=2,
+        if stream_callback:
+            stream_system_prompt = (
+                "You are NetPlus companion chat assistant.\n"
+                "Use only the provided context.\n"
+                "Answer directly in plain text, 2-4 short sentences.\n"
+                "No JSON, no labels, no A/B options, no percentages.\n"
             )
-            answer = AnswerPayload(
-                conclusion=cleaned_conclusion or '현재 시점 기준으로는 단정이 어려워.',
-                context=cleaned_context
-                or ['근거를 바탕으로 제한적으로 답변합니다.'],
-                interpretations=parsed_interpretations
-                or [Interpretation(label='핵심', text='근거 기반으로만 해석했습니다.', confidence=0.45)],
-                overall_confidence=_to_confidence(result.get('overall_confidence', 0.5), default=0.5),
+            stream_user_prompt = (
+                f'title_id={req.title_id}\nepisode_id={req.episode_id}\ncurrent_time_ms={req.current_time_ms}\n'
+                f'{history_block}\n'
+                f'language={req.language or "ko"}\n'
+                f'response_style={(req.response_style or ResponseStyle.FRIEND).value}\n'
+                f'question={req.question}\n'
+                f'Output language must be {output_language}. Do not mix languages.\n'
+                f'Style requirement: {style_instruction}\n'
+                f'context:\n{context_text}'
             )
+            streamed = llm.stream_text(
+                system_prompt=stream_system_prompt,
+                user_prompt=stream_user_prompt,
+                on_token=stream_callback,
+            )
+            if streamed:
+                answer = AnswerPayload(
+                    conclusion=_clean_text_line(streamed) or streamed,
+                    context=[
+                        f'[{line.start_ms}] {(line.speaker_text or "?")}: {line.text}'
+                        for line in lines[:2]
+                    ],
+                    interpretations=[
+                        Interpretation(label='핵심', text='현재 시점의 자막 근거를 기반으로 답변했습니다.', confidence=0.72)
+                    ],
+                    overall_confidence=0.72,
+                )
+        else:
+            system_prompt = load_prompt('qa_prompt.txt')
+            user_prompt = (
+                f'title_id={req.title_id}\nepisode_id={req.episode_id}\ncurrent_time_ms={req.current_time_ms}\n'
+                f'{history_block}\n'
+                f'language={req.language or "ko"}\n'
+                f'response_style={(req.response_style or ResponseStyle.FRIEND).value}\n'
+                f'question={req.question}\n'
+                f'Output requirement: All natural-language fields in JSON must be written in {output_language}. '
+                f'Do not mix languages.\n'
+                f'Style requirement: {style_instruction}\n'
+                'Clarity requirement: give a direct answer first. Avoid A/B, percentages, and repetitive framing.\n'
+                f'context:\n{context_text}'
+            )
+            result = llm.complete_json(system_prompt=system_prompt, user_prompt=user_prompt)
+            if result:
+                raw_interpretations = _as_list(result.get('interpretations', []))
+                parsed_interpretations: list[Interpretation] = []
+                for idx, item in enumerate(raw_interpretations[:2]):
+                    if isinstance(item, dict):
+                        text = _clean_text_line(str(item.get('text', '')))
+                        if not text:
+                            continue
+                        parsed_interpretations.append(
+                            Interpretation(
+                                label=str(item.get('label', '핵심'))[:20] or '핵심',
+                                text=text,
+                                confidence=_to_confidence(item.get('confidence', 0.3)),
+                            )
+                        )
+                    elif isinstance(item, str):
+                        text = _clean_text_line(item)
+                        if not text:
+                            continue
+                        parsed_interpretations.append(
+                            Interpretation(
+                                label='핵심' if idx == 0 else '보조',
+                                text=text,
+                                confidence=0.3,
+                            )
+                        )
+
+                cleaned_conclusion = _clean_text_line(str(result.get('conclusion', '')).strip())
+                cleaned_context = _clean_lines(
+                    [str(item) for item in _as_list(result.get('context', []))],
+                    limit=2,
+                )
+                answer = AnswerPayload(
+                    conclusion=cleaned_conclusion or '현재 시점 기준으로는 단정이 어려워.',
+                    context=cleaned_context
+                    or ['근거를 바탕으로 제한적으로 답변합니다.'],
+                    interpretations=parsed_interpretations
+                    or [Interpretation(label='핵심', text='근거 기반으로만 해석했습니다.', confidence=0.45)],
+                    overall_confidence=_to_confidence(result.get('overall_confidence', 0.5), default=0.5),
+                )
 
     if not answer:
         answer = _build_fallback_answer(lines, style=req.response_style)

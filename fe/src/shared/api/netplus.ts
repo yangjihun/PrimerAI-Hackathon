@@ -10,7 +10,7 @@ import type {
   Title,
   UUID,
 } from "../types/netplus";
-import { apiRequest } from "./http";
+import { AUTH_TOKEN_STORAGE_KEY, ApiError, apiRequest } from "./http";
 
 interface PaginatedTitlesResponse {
   items: Title[];
@@ -90,6 +90,9 @@ interface ImageUploadSignatureResponse {
 
 const USE_MOCK_DATA =
   (import.meta.env.VITE_USE_MOCK_DATA as string | undefined)?.toLowerCase() === "true";
+const API_BASE_URL = (
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ?? ""
+).replace(/\/$/, "");
 
 const MOCK_TITLES: Title[] = [
   {
@@ -166,6 +169,18 @@ function toQuery(params: Record<string, string | number | boolean | null | undef
   }
   const query = search.toString();
   return query ? `?${query}` : "";
+}
+
+function buildUrl(path: string): string {
+  if (!path.startsWith("/")) {
+    return `${API_BASE_URL}/${path}`;
+  }
+  return `${API_BASE_URL}${path}`;
+}
+
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
 async function withMockFallback<T>(
@@ -328,6 +343,125 @@ export async function warmupEpisodeCache(episodeId: UUID): Promise<void> {
     `/api/episodes/${episodeId}/cache/warmup`,
     { method: "POST" },
   );
+}
+
+export interface QAStreamHandlers {
+  onStatus?: (message: string) => void;
+  onToken?: (token: string) => void;
+}
+
+export async function askQuestionStream(
+  params: QARequest,
+  handlers: QAStreamHandlers = {},
+): Promise<QAResponse> {
+  if (USE_MOCK_DATA) {
+    const mock = await askQuestion(params);
+    handlers.onStatus?.("답변을 생성하고 있어요.");
+    for (const token of mock.answer.conclusion.split(/(\s+)/)) {
+      if (token) handlers.onToken?.(token);
+    }
+    return mock;
+  }
+
+  const headers = new Headers({ "Content-Type": "application/json" });
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  const response = await fetch(buildUrl("/api/qa/stream"), {
+    method: "POST",
+    headers,
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(text || `Request failed with status ${response.status}`, response.status);
+  }
+
+  if (!response.body) {
+    throw new Error("Streaming response body is empty.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  let finalResponse: QAResponse | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    while (true) {
+      const boundary = buffer.indexOf("\n\n");
+      if (boundary < 0) break;
+      const rawEvent = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      if (!rawEvent.trim()) continue;
+
+      const lines = rawEvent.split("\n");
+      let event = "message";
+      const dataLines: string[] = [];
+      for (const line of lines) {
+        if (line.startsWith("event:")) {
+          event = line.slice(6).trim();
+          continue;
+        }
+        if (line.startsWith("data:")) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+      if (!dataLines.length) continue;
+      const rawData = dataLines.join("\n");
+
+      let payload: unknown = rawData;
+      try {
+        payload = JSON.parse(rawData);
+      } catch {
+        payload = rawData;
+      }
+
+      if (event === "status") {
+        const message =
+          typeof payload === "object" && payload !== null && "message" in payload
+            ? String((payload as { message?: unknown }).message ?? "")
+            : "";
+        handlers.onStatus?.(message);
+        continue;
+      }
+
+      if (event === "token") {
+        const tokenText =
+          typeof payload === "object" && payload !== null && "token" in payload
+            ? String((payload as { token?: unknown }).token ?? "")
+            : "";
+        if (tokenText) handlers.onToken?.(tokenText);
+        continue;
+      }
+
+      if (event === "done") {
+        if (typeof payload === "object" && payload !== null && "response" in payload) {
+          finalResponse = (payload as { response: QAResponse }).response;
+        }
+        continue;
+      }
+
+      if (event === "error") {
+        const message =
+          typeof payload === "object" && payload !== null && "message" in payload
+            ? String((payload as { message?: unknown }).message ?? "Streaming failed.")
+            : "Streaming failed.";
+        throw new Error(message);
+      }
+    }
+  }
+
+  if (!finalResponse) {
+    throw new Error("Streaming completed without final payload.");
+  }
+  return finalResponse;
 }
 
 export async function ingestTitle(payload: TitleCreatePayload): Promise<Title> {

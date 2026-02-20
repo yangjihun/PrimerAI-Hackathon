@@ -52,3 +52,29 @@ class OpenAIClient:
         except Exception as exc:  # pragma: no cover - network dependent
             logger.warning('OpenAI JSON completion failed: %s', exc)
             return None
+
+    def stream_text(self, *, system_prompt: str, user_prompt: str, on_token) -> str | None:
+        if not self._client:
+            return None
+
+        chunks: list[str] = []
+        try:
+            stream = self._client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_prompt},
+                ],
+                temperature=0.2,
+                stream=True,
+            )
+            for event in stream:
+                delta = event.choices[0].delta.content if event.choices else None
+                if not delta:
+                    continue
+                chunks.append(delta)
+                on_token(delta)
+            return ''.join(chunks).strip()
+        except Exception as exc:  # pragma: no cover - network dependent
+            logger.warning('OpenAI text streaming failed: %s', exc)
+            return None

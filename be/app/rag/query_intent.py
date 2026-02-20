@@ -22,6 +22,18 @@ CASUAL_KEYWORDS = {
     "joke",
     "\uc774\ub984",
     "\ub108\ub204\uad6c",
+    "\ubb50\ud574",
+    "\uc2ec\uc2ec\ud574",
+    "\uc2ec\uc2ec",
+    "\uace0\ubbfc",
+    "\uadf8\ub0e5",
+    "\ucd94\ucc9c",
+    "\ub3c4\uc640\uc918",
+    "\uc870\uc5b8",
+    "\uace0\ubbfc\uc0c1\ub2f4",
+    "recommend",
+    "help",
+    "advice",
 }
 
 CASUAL_PREFIXES = (
@@ -31,6 +43,9 @@ CASUAL_PREFIXES = (
     "hi",
     "\ub108 \ub204\uad6c",
     "\uba87 \uc2dc",
+    "\ub098 \uc624\ub298",
+    "\ub098 \uc694\uc998",
+    "\uc694\uc998",
 )
 
 EPISODE_KEYWORDS = {
@@ -64,6 +79,9 @@ CASUAL_PATTERNS = (
     re.compile(r"\ubb50\s*\uba39"),
     re.compile(r"(\ucd94\ucc9c\ud574\uc918|\ucd94\ucc9c\ud574\uc8fc\uc138\uc694)"),
     re.compile(r"(\ubc30\uace0\ud30c|\ud5db\uac00\ub798)"),
+    re.compile(r"(\ubb50\ud574|\ubb50\ud558\ub0d0|\ubb50\ud560\uae4c)"),
+    re.compile(r"(\ub3c4\uc640\uc918|\uc870\uc5b8\ud574\uc918|\uc0c1\ub2f4\ud574\uc918)"),
+    re.compile(r"(recommend|advice|help me)", re.IGNORECASE),
 )
 
 
@@ -103,7 +121,7 @@ def classify_query_intent(question: str) -> QueryIntentResult:
             reason="empty_question",
         )
 
-    episode_score = 0.35
+    episode_score = 0.2
     casual_score = 0.0
     reasons: list[str] = []
 
@@ -132,6 +150,10 @@ def classify_query_intent(question: str) -> QueryIntentResult:
     if len(tokens) <= 2 and casual_score >= 0.5:
         casual_score += 0.15
         reasons.append("short_casual_utterance")
+
+    if episode_hits == 0 and len(tokens) <= 12 and ("?" in question or normalized.endswith("\uae4c")):
+        casual_score += 0.18
+        reasons.append("short_question_without_episode_signals")
 
     if episode_hits == 0 and casual_hits >= 1:
         return QueryIntentResult(
