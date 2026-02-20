@@ -584,6 +584,12 @@ body {
   margin-bottom: 0;
 }
 
+.chat-message-time {
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
 .chat-details {
   margin-top: 12px;
   padding-top: 12px;

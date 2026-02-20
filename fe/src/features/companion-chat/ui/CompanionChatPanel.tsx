@@ -3,6 +3,7 @@ import type { ChatHistoryItem, QAResponse, ResponseStyle, UUID } from "../../../
 import { askQuestion, clearQaHistory, getQaHistory } from "../../../shared/api/netplus";
 import { EvidenceQuote } from "../../../shared/ui/EvidenceQuote";
 import { Button } from "../../../shared/ui/Button";
+import { msToClock } from "../../../shared/lib/utils";
 import {
   consumeAiUsage,
   getAiUsageStatus,
@@ -27,20 +28,22 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  timeMs?: number;
   data?: QAResponse;
 }
 
 function toLocalMessage(item: ChatHistoryItem): ChatMessage {
   if (item.role === "assistant") {
-    return { id: item.id, role: "assistant", content: item.content };
+    return { id: item.id, role: "assistant", content: item.content, timeMs: item.current_time_ms };
   }
   if (item.role === "user") {
-    return { id: item.id, role: "user", content: item.content };
+    return { id: item.id, role: "user", content: item.content, timeMs: item.current_time_ms };
   }
   return {
     id: item.id,
     role: "assistant",
     content: `[system] ${item.content}`,
+    timeMs: item.current_time_ms,
   };
 }
 
@@ -111,6 +114,7 @@ export function CompanionChatPanel({
       id: `user-${Date.now()}`,
       role: "user",
       content: question,
+      timeMs: currentTimeMs,
     };
     setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
@@ -127,6 +131,7 @@ export function CompanionChatPanel({
         id: `assistant-${Date.now()}`,
         role: "assistant",
         content: response.answer.conclusion,
+        timeMs: response.meta.current_time_ms,
         data: response,
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -211,6 +216,11 @@ export function CompanionChatPanel({
           messages.map((msg) => (
             <div key={msg.id} className={`chat-message chat-message-${msg.role}`}>
               <div className="chat-content">
+                {typeof msg.timeMs === "number" && (
+                  <div className="chat-message-time">
+                    {msToClock(msg.timeMs)}
+                  </div>
+                )}
                 <p>{msg.content}</p>
                 {msg.role === "assistant" && msg.data && (
                   <div className="chat-details">
