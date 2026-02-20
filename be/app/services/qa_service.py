@@ -113,6 +113,28 @@ def _rerank_lines_for_question(lines: list, question: str, *, limit: int = 6) ->
     return ranked[:limit]
 
 
+def _filter_relevant_lines(lines: list, question: str, *, limit: int = 6) -> list:
+    if not lines:
+        return []
+    q_tokens = _query_tokens(question)
+    if not q_tokens:
+        return lines[:limit]
+
+    scored: list[tuple[int, int, object]] = []
+    for line in lines:
+        source = f'{getattr(line, "speaker_text", "")} {getattr(line, "text", "")}'.lower()
+        line_tokens = _query_tokens(source)
+        overlap = len(q_tokens.intersection(line_tokens))
+        recency = -int(getattr(line, 'start_ms', 0))
+        if overlap > 0:
+            scored.append((overlap, recency, line))
+
+    if not scored:
+        return []
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [item[2] for item in scored[:limit]]
+
+
 def _language_instruction(language: str | None) -> str:
     if (language or '').lower().startswith('ko'):
         return 'Korean'
@@ -683,6 +705,7 @@ def ask_question(
             max_lines=6,
         )
     lines = _rerank_lines_for_question(lines, req.question, limit=6)
+    lines = _filter_relevant_lines(lines, req.question, limit=6)
 
     evidences = build_evidences_from_lines(lines, max_lines_per_evidence=2)
     evidences = sanitize_evidences(
