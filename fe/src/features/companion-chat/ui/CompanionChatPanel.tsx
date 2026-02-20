@@ -151,9 +151,9 @@ export function CompanionChatPanel({
     if (loading) return;
     setError("");
     const presetQuestions: Record<typeof preset, string> = {
-      recap: "지금까지 내용을 1분으로 요약해줘.",
+      recap: "지금까지 내용 요약해줘.",
       scene: "방금 장면이 왜 이렇게 전개됐어?",
-      relation: "A와 B의 관계가 뭐야?",
+      relation: "현재 인물 관계 정리해줘",
     };
     await askWithUsageGuard(presetQuestions[preset]);
   };
@@ -185,7 +185,7 @@ export function CompanionChatPanel({
 
       <div className="preset-buttons">
         <Button variant="ghost" size="sm" onClick={() => handlePreset("recap")} disabled={loading}>
-          1분 요약
+          내용 요약
         </Button>
         <Button variant="ghost" size="sm" onClick={() => handlePreset("scene")} disabled={loading}>
           장면 이유

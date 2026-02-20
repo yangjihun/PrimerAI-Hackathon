@@ -45,7 +45,7 @@ export function RecapPanel({
       setRecap(response);
     } catch (error) {
       console.error("Failed to generate recap:", error);
-      setError("리캡 생성에 실패했습니다. 다시 시도해 주세요.");
+      setError("내용 요약 생성에 실패했습니다. 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -100,7 +100,7 @@ export function RecapPanel({
           </Button>
         </div>
         <Button onClick={handleGenerate} disabled={loading}>
-          {loading ? "생성 중..." : "리캡 생성"}
+          {loading ? "생성 중..." : "내용 요약 생성"}
         </Button>
       </div>
 

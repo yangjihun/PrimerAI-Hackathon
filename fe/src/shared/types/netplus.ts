@@ -17,14 +17,6 @@ export type Episode = {
   video_url?: string | null;
 };
 
-export type Character = {
-  id: UUID;
-  title_id: UUID;
-  canonical_name: string;
-  description?: string;
-  aliases: string[];
-};
-
 export type EvidenceLine = {
   subtitle_line_id: UUID;
   start_ms: number;
@@ -46,47 +38,6 @@ export type Evidence = {
   representative_time_ms: number;
   summary: string;
   lines: EvidenceLine[];
-};
-
-export type RelationType =
-  | "FAMILY"
-  | "ROMANCE"
-  | "ALLY"
-  | "MISTRUST"
-  | "BOSS_SUBORDINATE"
-  | "FRIEND"
-  | "RIVAL"
-  | "UNKNOWN";
-
-export type GraphNode = {
-  id: UUID;
-  label: string;
-  description?: string;
-  aliases: string[];
-};
-
-export type GraphEdge = {
-  id: UUID;
-  from_character_id: UUID;
-  to_character_id: UUID;
-  relation_type: RelationType;
-  is_hypothesis: boolean;
-  confidence: number;
-  valid_from_time_ms: number;
-  valid_to_time_ms: number | null;
-  evidences: Evidence[];
-};
-
-export type GraphResponse = {
-  meta: {
-    title_id: UUID;
-    episode_id: UUID;
-    current_time_ms: number;
-    spoiler_guard_applied: boolean;
-  };
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  warnings: Array<{ code: string; message: string }>;
 };
 
 export type RecapPreset = "TWENTY_SEC" | "ONE_MIN" | "THREE_MIN";
@@ -178,22 +129,6 @@ export type ChatHistoryResponse = {
 export type ChatHistoryClearResponse = {
   deleted_messages: number;
   deleted_sessions: number;
-};
-
-export type CharacterCardResponse = {
-  meta: {
-    character_id: UUID;
-    episode_id: UUID;
-    current_time_ms: number;
-    spoiler_guard_applied: boolean;
-  };
-  character: Character;
-  summary: {
-    text: string;
-    key_events: string[];
-  };
-  evidences: Evidence[];
-  warnings: Array<{ code: string; message: string }>;
 };
 
 export type AuthUser = {

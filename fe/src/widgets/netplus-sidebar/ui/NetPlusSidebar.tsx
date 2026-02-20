@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { UUID } from "../../../shared/types/netplus";
 import { CompanionChatPanel } from "../../../features/companion-chat/ui/CompanionChatPanel";
-import { RelationshipGraphPanel } from "../../../features/relationship-graph/ui/RelationshipGraphPanel";
 import { RecapPanel } from "../../../features/recap/ui/RecapPanel";
 import { msToClock } from "../../../shared/lib/utils";
 
@@ -14,7 +13,7 @@ interface NetPlusSidebarProps {
   onToggle: () => void;
 }
 
-type TabType = "chat" | "graph" | "recap";
+type TabType = "chat" | "recap";
 
 export function NetPlusSidebar({
   titleId,
@@ -58,43 +57,21 @@ export function NetPlusSidebar({
           Net+ 챗봇
         </button>
         <button
-          className={`netplus-tab ${activeTab === "graph" ? "active" : ""}`}
-          onClick={() => setActiveTab("graph")}
-        >
-          관계도
-        </button>
-        <button
           className={`netplus-tab ${activeTab === "recap" ? "active" : ""}`}
           onClick={() => setActiveTab("recap")}
         >
-          리캡
+          내용 요약
         </button>
       </div>
 
       <div className="netplus-content">
         {activeTab === "chat" && (
-          <CompanionChatPanel
-            titleId={titleId}
-            episodeId={episodeId}
-            currentTimeMs={currentTimeMs}
-          />
-        )}
-        {activeTab === "graph" && (
-          <RelationshipGraphPanel
-            titleId={titleId}
-            episodeId={episodeId}
-            currentTimeMs={currentTimeMs}
-          />
+          <CompanionChatPanel titleId={titleId} episodeId={episodeId} currentTimeMs={currentTimeMs} />
         )}
         {activeTab === "recap" && (
-          <RecapPanel
-            titleId={titleId}
-            episodeId={episodeId}
-            currentTimeMs={currentTimeMs}
-          />
+          <RecapPanel titleId={titleId} episodeId={episodeId} currentTimeMs={currentTimeMs} />
         )}
       </div>
     </div>
   );
 }
-
