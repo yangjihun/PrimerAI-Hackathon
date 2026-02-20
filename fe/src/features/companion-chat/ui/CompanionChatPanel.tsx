@@ -260,7 +260,17 @@ export function CompanionChatPanel({
         {loading && (
           <div className="chat-message chat-message-assistant">
             <div className="chat-content">
-              <p>생각 중...</p>
+              <div className="chat-loading" aria-live="polite" aria-label="답변 생성 중">
+                <span className="chat-loading-spinner" />
+                <span className="chat-loading-text">
+                  생각 중
+                  <span className="chat-loading-dots">
+                    <span>.</span>
+                    <span>.</span>
+                    <span>.</span>
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
         )}
