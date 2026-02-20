@@ -20,6 +20,7 @@ class Title(BaseModel):
     id: str
     name: str
     description: str | None = None
+    thumbnail_url: str | None = None
     created_at: str | None = None
 
 
@@ -309,6 +310,7 @@ class AuthResponse(BaseModel):
 class TitleCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
+    thumbnail_url: str | None = None
 
 
 class EpisodeCreateRequest(BaseModel):
@@ -330,6 +332,24 @@ class VideoUploadSignatureRequest(BaseModel):
 
 
 class VideoUploadSignatureResponse(BaseModel):
+    upload_url: str
+    api_key: str
+    timestamp: str
+    folder: str
+    public_id: str
+    signature: str
+
+
+class TitleThumbnailUpdateRequest(BaseModel):
+    thumbnail_url: str = Field(min_length=1)
+
+
+class ImageUploadSignatureRequest(BaseModel):
+    title_id: str
+    filename: str = Field(min_length=1, max_length=255)
+
+
+class ImageUploadSignatureResponse(BaseModel):
     upload_url: str
     api_key: str
     timestamp: str

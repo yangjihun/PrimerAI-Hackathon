@@ -26,6 +26,7 @@ def get_titles(
                 id=title.id,
                 name=title.name,
                 description=title.description,
+                thumbnail_url=title.thumbnail_url,
                 created_at=title.created_at.isoformat() if title.created_at else None,
             )
             for title in titles
@@ -43,6 +44,7 @@ def get_title_by_id(titleId: str, db: Session = Depends(get_db)):
         id=title.id,
         name=title.name,
         description=title.description,
+        thumbnail_url=title.thumbnail_url,
         created_at=title.created_at.isoformat() if title.created_at else None,
     )
 
@@ -105,4 +107,3 @@ def get_episode_subtitles(
             for line in lines
         ],
     }
-

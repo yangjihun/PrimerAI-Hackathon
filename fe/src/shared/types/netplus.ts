@@ -4,7 +4,7 @@ export type Title = {
   id: UUID;
   name: string;
   description: string;
-  thumbnail_url?: string;
+  thumbnail_url?: string | null;
 };
 
 export type Episode = {

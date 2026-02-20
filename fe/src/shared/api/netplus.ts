@@ -30,6 +30,7 @@ interface EpisodeSubtitlesResponse {
 interface TitleCreatePayload {
   name: string;
   description?: string;
+  thumbnail_url?: string;
 }
 
 interface EpisodeCreatePayload {
@@ -64,6 +65,20 @@ interface VideoUploadSignatureRequest {
 }
 
 interface VideoUploadSignatureResponse {
+  upload_url: string;
+  api_key: string;
+  timestamp: string;
+  folder: string;
+  public_id: string;
+  signature: string;
+}
+
+interface ImageUploadSignatureRequest {
+  title_id: UUID;
+  filename: string;
+}
+
+interface ImageUploadSignatureResponse {
   upload_url: string;
   api_key: string;
   timestamp: string;
@@ -416,6 +431,31 @@ export async function updateEpisodeVideoUrl(params: {
 
 export async function deleteEpisodeVideoUrl(episodeId: UUID): Promise<Episode> {
   return apiRequest<Episode>(`/api/ingest/episodes/${episodeId}/video-url`, {
+    method: "DELETE",
+  });
+}
+
+export async function issueTitleImageUploadSignature(
+  payload: ImageUploadSignatureRequest,
+): Promise<ImageUploadSignatureResponse> {
+  return apiRequest<ImageUploadSignatureResponse>("/api/ingest/image-upload-signature", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateTitleThumbnailUrl(params: {
+  title_id: UUID;
+  thumbnail_url: string;
+}): Promise<Title> {
+  return apiRequest<Title>(`/api/ingest/titles/${params.title_id}/thumbnail-url`, {
+    method: "PATCH",
+    body: JSON.stringify({ thumbnail_url: params.thumbnail_url }),
+  });
+}
+
+export async function deleteTitleThumbnailUrl(titleId: UUID): Promise<Title> {
+  return apiRequest<Title>(`/api/ingest/titles/${titleId}/thumbnail-url`, {
     method: "DELETE",
   });
 }

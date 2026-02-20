@@ -1,13 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Episode, Title, UUID } from "../../../shared/types/netplus";
 import {
+  deleteTitleThumbnailUrl,
   ingestEpisode,
   ingestSubtitleLinesBulk,
   ingestTitle,
   deleteEpisodeVideoUrl,
+  issueTitleImageUploadSignature,
   issueVideoUploadSignature,
   listEpisodes,
   listTitles,
+  updateTitleThumbnailUrl,
   updateEpisodeVideoUrl,
 } from "../../../shared/api/netplus";
 
@@ -161,6 +164,8 @@ export function AdminPage() {
 
   const [titleName, setTitleName] = useState("");
   const [titleDescription, setTitleDescription] = useState("");
+  const [titleThumbnailUrl, setTitleThumbnailUrl] = useState("");
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
   const [episodeSeason, setEpisodeSeason] = useState(1);
   const [episodeNumber, setEpisodeNumber] = useState(1);
@@ -215,11 +220,13 @@ export function AdminPage() {
       const created = await ingestTitle({
         name: titleName.trim(),
         description: titleDescription.trim() || undefined,
+        thumbnail_url: titleThumbnailUrl.trim() || undefined,
       });
       setTitles((prev) => [created, ...prev]);
       setSelectedTitleId(created.id);
       setTitleName("");
       setTitleDescription("");
+      setTitleThumbnailUrl("");
       setMessage(`Title created: ${created.name}`);
     } catch (requestError) {
       console.error(requestError);
@@ -361,6 +368,66 @@ export function AdminPage() {
     }
   };
 
+  const handleUploadThumbnail = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedTitleId) {
+      setError("Select a title first.");
+      return;
+    }
+    if (!thumbnailFile) {
+      setError("Select an image file first.");
+      return;
+    }
+
+    resetNotice();
+    setLoading(true);
+    try {
+      const signed = await issueTitleImageUploadSignature({
+        title_id: selectedTitleId,
+        filename: thumbnailFile.name,
+      });
+
+      const formData = new FormData();
+      formData.append("file", thumbnailFile);
+      formData.append("api_key", signed.api_key);
+      formData.append("timestamp", signed.timestamp);
+      formData.append("folder", signed.folder);
+      formData.append("public_id", signed.public_id);
+      formData.append("signature", signed.signature);
+
+      const uploadResponse = await fetch(signed.upload_url, {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error(`Thumbnail upload failed: ${uploadResponse.status}`);
+      }
+      const uploaded = (await uploadResponse.json()) as { secure_url?: string };
+      const secureUrl = (uploaded.secure_url ?? "").trim();
+      if (!secureUrl) {
+        throw new Error("Thumbnail secure_url missing");
+      }
+
+      await updateTitleThumbnailUrl({
+        title_id: selectedTitleId,
+        thumbnail_url: secureUrl,
+      });
+      setTitles((prev) =>
+        prev.map((title) =>
+          title.id === selectedTitleId ? { ...title, thumbnail_url: secureUrl } : title,
+        ),
+      );
+      setTitleThumbnailUrl(secureUrl);
+      setThumbnailFile(null);
+      setMessage("Thumbnail uploaded and linked.");
+    } catch (requestError) {
+      console.error(requestError);
+      setError("Failed to upload thumbnail.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUploadSubtitles = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedEpisodeId) {
@@ -417,6 +484,27 @@ export function AdminPage() {
     }
   };
 
+  const handleDeleteThumbnail = async (titleId: UUID) => {
+    if (loading) return;
+    resetNotice();
+    setLoading(true);
+    try {
+      await deleteTitleThumbnailUrl(titleId);
+      setTitles((prev) =>
+        prev.map((title) => (title.id === titleId ? { ...title, thumbnail_url: undefined } : title)),
+      );
+      if (titleId === selectedTitleId) {
+        setTitleThumbnailUrl("");
+      }
+      setMessage("Thumbnail removed from title.");
+    } catch (requestError) {
+      console.error(requestError);
+      setError("Failed to delete thumbnail.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="admin-page">
       <section className="admin-card">
@@ -444,10 +532,72 @@ export function AdminPage() {
             placeholder="Description (optional)"
             disabled={loading}
           />
+          <input
+            value={titleThumbnailUrl}
+            onChange={(e) => setTitleThumbnailUrl(e.target.value)}
+            placeholder="Thumbnail URL (optional)"
+            disabled={loading}
+          />
           <button type="submit" disabled={loading || !titleName.trim()}>
             Add Title
           </button>
         </form>
+      </section>
+
+      <section className="admin-card">
+        <h2>Upload Thumbnail (Cloudinary)</h2>
+        <form className="admin-form" onSubmit={handleUploadThumbnail}>
+          <label>
+            Title
+            <select
+              value={selectedTitleId}
+              onChange={(e) => setSelectedTitleId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">Select</option>
+              {titles.map((title) => (
+                <option key={title.id} value={title.id}>
+                  {title.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
+            disabled={loading}
+          />
+          <button type="submit" disabled={loading || !selectedTitleId || !thumbnailFile}>
+            Upload Thumbnail
+          </button>
+        </form>
+      </section>
+
+      <section className="admin-card">
+        <h2>Manage Title Thumbnails</h2>
+        {titles.length === 0 ? (
+          <p className="admin-help">No titles.</p>
+        ) : (
+          <div className="admin-episode-list">
+            {titles.map((title) => (
+              <div key={title.id} className="admin-episode-item">
+                <div className="admin-episode-copy">
+                  <strong>{title.name}</strong>
+                  <div className="admin-episode-url">{title.thumbnail_url ?? "No thumbnail linked"}</div>
+                </div>
+                <button
+                  type="button"
+                  className="admin-danger-btn"
+                  disabled={loading || !title.thumbnail_url}
+                  onClick={() => handleDeleteThumbnail(title.id)}
+                >
+                  Delete Thumbnail
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="admin-card">

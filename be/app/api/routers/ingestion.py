@@ -12,17 +12,23 @@ from app.api.schemas import (
     Episode,
     EpisodeCreateRequest,
     EpisodeVideoUpdateRequest,
+    ImageUploadSignatureRequest,
+    ImageUploadSignatureResponse,
     IngestSubtitleLinesResponse,
     SubtitleLineBulkRequest,
     Title,
     TitleCreateRequest,
+    TitleThumbnailUpdateRequest,
     AuthUser,
     VideoUploadSignatureRequest,
     VideoUploadSignatureResponse,
 )
 from app.db.models import Episode as EpisodeModel
 from app.db.models import SubtitleLine, Title as TitleModel
-from app.services.media_upload_service import build_cloudinary_video_upload_signature
+from app.services.media_upload_service import (
+    build_cloudinary_image_upload_signature,
+    build_cloudinary_video_upload_signature,
+)
 
 router = APIRouter(prefix='/ingest', tags=['Ingestion'])
 
@@ -37,7 +43,12 @@ def ingest_title(
     db: Session = Depends(get_db),
     _: AuthUser = Depends(get_admin_user),
 ) -> Title:
-    row = TitleModel(name=payload.name.strip(), description=payload.description, created_at=_now())
+    row = TitleModel(
+        name=payload.name.strip(),
+        description=payload.description,
+        thumbnail_url=payload.thumbnail_url,
+        created_at=_now(),
+    )
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -45,6 +56,7 @@ def ingest_title(
         id=row.id,
         name=row.name,
         description=row.description,
+        thumbnail_url=row.thumbnail_url,
         created_at=row.created_at.isoformat() if row.created_at else None,
     )
 
@@ -108,6 +120,53 @@ def update_episode_video_url(
     )
 
 
+@router.patch('/titles/{title_id}/thumbnail-url', response_model=Title)
+def update_title_thumbnail_url(
+    title_id: str,
+    payload: TitleThumbnailUpdateRequest,
+    db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_admin_user),
+) -> Title:
+    row = db.scalar(select(TitleModel).where(TitleModel.id == title_id))
+    if row is None:
+        raise validation_error('Invalid request.', {'field': 'title_id', 'reason': 'Title not found'})
+
+    row.thumbnail_url = payload.thumbnail_url.strip()
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return Title(
+        id=row.id,
+        name=row.name,
+        description=row.description,
+        thumbnail_url=row.thumbnail_url,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+    )
+
+
+@router.delete('/titles/{title_id}/thumbnail-url', response_model=Title)
+def delete_title_thumbnail_url(
+    title_id: str,
+    db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_admin_user),
+) -> Title:
+    row = db.scalar(select(TitleModel).where(TitleModel.id == title_id))
+    if row is None:
+        raise validation_error('Invalid request.', {'field': 'title_id', 'reason': 'Title not found'})
+
+    row.thumbnail_url = None
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return Title(
+        id=row.id,
+        name=row.name,
+        description=row.description,
+        thumbnail_url=row.thumbnail_url,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+    )
+
+
 @router.delete('/episodes/{episode_id}/video-url', response_model=Episode)
 def delete_episode_video_url(
     episode_id: str,
@@ -150,6 +209,25 @@ def issue_video_upload_signature(
     except ValueError as exc:
         raise validation_error('Invalid request.', {'field': 'cloudinary', 'reason': str(exc)})
     return VideoUploadSignatureResponse(**signed)
+
+
+@router.post('/image-upload-signature', response_model=ImageUploadSignatureResponse)
+def issue_image_upload_signature(
+    payload: ImageUploadSignatureRequest,
+    db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_admin_user),
+) -> ImageUploadSignatureResponse:
+    title_exists = db.scalar(select(TitleModel.id).where(TitleModel.id == payload.title_id))
+    if title_exists is None:
+        raise validation_error('Invalid request.', {'field': 'title_id', 'reason': 'Title not found'})
+    try:
+        signed = build_cloudinary_image_upload_signature(
+            title_id=payload.title_id,
+            filename=payload.filename,
+        )
+    except ValueError as exc:
+        raise validation_error('Invalid request.', {'field': 'cloudinary', 'reason': str(exc)})
+    return ImageUploadSignatureResponse(**signed)
 
 
 @router.post('/subtitle-lines:bulk', response_model=IngestSubtitleLinesResponse, status_code=status.HTTP_202_ACCEPTED)
