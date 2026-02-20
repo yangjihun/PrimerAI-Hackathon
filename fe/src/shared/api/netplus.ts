@@ -1,4 +1,6 @@
 import type {
+  ChatHistoryClearResponse,
+  ChatHistoryResponse,
   CharacterCardResponse,
   Episode,
   GraphResponse,
@@ -380,12 +382,52 @@ export async function getCharacterCard(params: {
   );
 }
 
+export async function getQaHistory(params: {
+  title_id: UUID;
+  episode_id: UUID;
+  limit?: number;
+}): Promise<ChatHistoryResponse> {
+  if (USE_MOCK_DATA) {
+    return { items: [] };
+  }
+  const query = toQuery({
+    title_id: params.title_id,
+    episode_id: params.episode_id,
+    limit: params.limit ?? 100,
+  });
+  return apiRequest<ChatHistoryResponse>(`/api/qa/history${query}`);
+}
+
+export async function clearQaHistory(params: {
+  title_id: UUID;
+  episode_id: UUID;
+}): Promise<ChatHistoryClearResponse> {
+  if (USE_MOCK_DATA) {
+    return { deleted_messages: 0, deleted_sessions: 0 };
+  }
+  const query = toQuery({
+    title_id: params.title_id,
+    episode_id: params.episode_id,
+  });
+  return apiRequest<ChatHistoryClearResponse>(`/api/qa/history${query}`, {
+    method: "DELETE",
+  });
+}
+
 export async function listEpisodeSubtitles(episodeId: UUID): Promise<SubtitleLine[]> {
   if (USE_MOCK_DATA) {
     return [];
   }
   const response = await apiRequest<EpisodeSubtitlesResponse>(`/api/episodes/${episodeId}/subtitles`);
   return response.items;
+}
+
+export async function warmupEpisodeCache(episodeId: UUID): Promise<void> {
+  if (USE_MOCK_DATA) return;
+  await apiRequest<{ episode_id: UUID; cached_chunks: number }>(
+    `/api/episodes/${episodeId}/cache/warmup`,
+    { method: "POST" },
+  );
 }
 
 export async function ingestTitle(payload: TitleCreatePayload): Promise<Title> {

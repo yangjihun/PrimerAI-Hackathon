@@ -493,6 +493,28 @@ body {
   height: 100%;
 }
 
+.chat-style-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.chat-style-picker label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.chat-style-picker select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: var(--text);
+}
+
 .preset-buttons {
   display: flex;
   flex-wrap: wrap;

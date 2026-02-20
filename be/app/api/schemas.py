@@ -439,3 +439,12 @@ class ChatMessageOut(BaseModel):
 class ChatMessageListResponse(BaseModel):
     session_id: str
     items: list[ChatMessageOut]
+
+
+class ChatHistoryResponse(BaseModel):
+    items: list[ChatMessageOut]
+
+
+class ChatHistoryClearResponse(BaseModel):
+    deleted_messages: int
+    deleted_sessions: int

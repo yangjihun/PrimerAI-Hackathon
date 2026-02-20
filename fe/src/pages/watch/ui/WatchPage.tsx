@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { listEpisodeSubtitles, listEpisodes, listTitles } from "../../../shared/api/netplus";
+import { listEpisodeSubtitles, listEpisodes, listTitles, warmupEpisodeCache } from "../../../shared/api/netplus";
 import {
   getCurrentPlan,
   getFreeSelectedTitleId,
@@ -91,6 +91,11 @@ export function WatchPage() {
         setSubtitleLines([]);
         setSubtitleError("");
         return;
+      }
+      try {
+        await warmupEpisodeCache(selectedEpisodeId);
+      } catch (error) {
+        console.warn("Episode cache warmup failed:", error);
       }
       try {
         const lines = await listEpisodeSubtitles(selectedEpisodeId);

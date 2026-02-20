@@ -55,7 +55,7 @@ export function NetPlusSidebar({
           className={`netplus-tab ${activeTab === "chat" ? "active" : ""}`}
           onClick={() => setActiveTab("chat")}
         >
-          함께 보는 친구
+          Net+ 챗봇
         </button>
         <button
           className={`netplus-tab ${activeTab === "graph" ? "active" : ""}`}

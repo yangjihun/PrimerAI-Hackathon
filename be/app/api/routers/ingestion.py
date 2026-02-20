@@ -25,6 +25,7 @@ from app.api.schemas import (
 )
 from app.db.models import Episode as EpisodeModel
 from app.db.models import SubtitleLine, Title as TitleModel
+from app.services.cache_service import invalidate_episode_chunks_cache, warmup_episode_chunks_cache
 from app.services.chunk_service import rebuild_chunks_for_episodes
 from app.services.media_upload_service import (
     build_cloudinary_image_upload_signature,
@@ -266,6 +267,9 @@ def ingest_subtitle_lines_bulk(
         inserted += 1
 
     rebuild_chunks_for_episodes(db, episode_ids)
+    for episode_id in episode_ids:
+        invalidate_episode_chunks_cache(episode_id)
+        warmup_episode_chunks_cache(db, episode_id)
     db.commit()
     return IngestSubtitleLinesResponse(
         inserted_count=inserted,
@@ -285,6 +289,8 @@ def delete_subtitle_lines_by_episode(
 
     result = db.execute(delete(SubtitleLine).where(SubtitleLine.episode_id == episode_id))
     rebuild_chunks_for_episodes(db, [episode_id])
+    invalidate_episode_chunks_cache(episode_id)
+    warmup_episode_chunks_cache(db, episode_id)
     db.commit()
     deleted = int(result.rowcount or 0)
     return IngestSubtitleLinesResponse(

@@ -1,15 +1,18 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+import logging
 
 from app.api.deps import get_db
 from app.api.errors import not_found
 from app.api.schemas import Episode, PaginatedTitles, Title
 from app.db.models import Episode as EpisodeModel
 from app.db.models import SubtitleLine
+from app.services.cache_service import warmup_episode_chunks_cache
 from app.services.catalog_service import get_title, list_episodes, list_titles
 
 router = APIRouter(tags=["Catalog"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/titles", response_model=PaginatedTitles)
@@ -107,3 +110,20 @@ def get_episode_subtitles(
             for line in lines
         ],
     }
+
+
+@router.post("/episodes/{episodeId}/cache/warmup")
+def warmup_episode_cache(
+    episodeId: str,
+    db: Session = Depends(get_db),
+):
+    episode = db.scalar(select(EpisodeModel).where(EpisodeModel.id == episodeId))
+    if episode is None:
+        raise not_found("Episode not found.")
+    cached_chunks = warmup_episode_chunks_cache(db, episodeId)
+    logger.info(
+        "episode_cache_warmup episode_id=%s cached_chunks=%s",
+        episodeId,
+        cached_chunks,
+    )
+    return {"episode_id": episodeId, "cached_chunks": cached_chunks}

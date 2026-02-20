@@ -27,6 +27,13 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> AuthUser | None:
+    return resolve_user_from_bearer(db, authorization)
+
+
 def get_admin_user(
     user: AuthUser = Depends(get_current_user),
 ) -> AuthUser:

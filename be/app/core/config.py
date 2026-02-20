@@ -27,6 +27,9 @@ class Settings(BaseSettings):
 
     auth_jwt_secret: str = Field(default='change-me-in-env')
     auth_jwt_exp_minutes: int = Field(default=60 * 24 * 7)
+    redis_url: str | None = Field(default=None)
+    redis_cache_ttl_seconds: int = Field(default=1800)
+    chat_history_window: int = Field(default=8)
 
     @property
     def is_development(self) -> bool:

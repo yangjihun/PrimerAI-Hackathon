@@ -156,6 +156,30 @@ export type QAResponse = {
   warnings: Array<{ code: string; message: string }>;
 };
 
+export type ChatRole = "user" | "assistant" | "system";
+
+export type ChatHistoryItem = {
+  id: UUID;
+  session_id: UUID;
+  role: ChatRole;
+  content: string;
+  current_time_ms: number;
+  model?: string | null;
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  related_relation_id?: UUID | null;
+  created_at?: string | null;
+};
+
+export type ChatHistoryResponse = {
+  items: ChatHistoryItem[];
+};
+
+export type ChatHistoryClearResponse = {
+  deleted_messages: number;
+  deleted_sessions: number;
+};
+
 export type CharacterCardResponse = {
   meta: {
     character_id: UUID;
